@@ -1,9 +1,11 @@
 def test_register_success(client, etudiant_data):
     response = client.post("/api/auth/register", json=etudiant_data)
     assert response.status_code == 201
-    assert response.json()["email"] == etudiant_data["email"]
-    assert "mot_de_passe" not in response.json()
-    assert "mot_de_passe_hash" not in response.json()
+    data = response.json()
+    assert data["user"]["email"] == etudiant_data["email"]
+    assert "access_token" in data
+    assert "mot_de_passe" not in data["user"]
+    assert "mot_de_passe_hash" not in data["user"]
 
 
 def test_register_duplicate_email_rejected(client, etudiant_data):

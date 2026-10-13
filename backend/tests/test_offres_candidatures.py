@@ -1,6 +1,9 @@
 def _register_and_login(client, data):
     client.post("/api/auth/register", json=data)
-    client.post("/api/auth/login", json={"email": data["email"], "mot_de_passe": data["mot_de_passe"]})
+    client.post(
+        "/api/auth/login",
+        json={"email": data["email"], "mot_de_passe": data["mot_de_passe"]},
+    )
 
 
 def test_creer_offre_sans_profil_entreprise_rejete(client, entreprise_data):

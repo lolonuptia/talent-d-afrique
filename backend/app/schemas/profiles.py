@@ -29,6 +29,7 @@ class EtudiantProfileIn(BaseModel):
     experiences: str | None = None
     formations: str | None = None
     disponibilite: DisponibiliteCandidat | None = None
+    visible_aux_entreprises: bool | None = None
     preferences: str | None = None
     ecole_id: uuid.UUID | None = None
 
@@ -41,6 +42,7 @@ class EtudiantProfileOut(BaseModel):
     experiences: str | None = None
     formations: str | None = None
     disponibilite: str | None = None  # tolerant : ne casse pas la lecture de donnees existantes
+    visible_aux_entreprises: bool = False
     preferences: str | None = None
     ecole_id: uuid.UUID | None = None
 
@@ -66,6 +68,7 @@ class FreelanceProfileIn(BaseModel):
     competences: str | None = None
     tjm: float | None = Field(default=None, ge=0)
     disponibilite: DisponibiliteCandidat | None = None
+    visible_aux_entreprises: bool | None = None
     portfolio_url: str | None = None
     annees_experience: int | None = Field(default=None, ge=0)
 
@@ -76,6 +79,7 @@ class FreelanceProfileOut(BaseModel):
     competences: str | None = None
     tjm: float | None = None
     disponibilite: str | None = None  # tolerant : ne casse pas la lecture de donnees existantes
+    visible_aux_entreprises: bool = False
     portfolio_url: str | None = None
     annees_experience: int | None = None
 

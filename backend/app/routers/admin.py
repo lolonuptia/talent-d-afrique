@@ -1,12 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_admin
 from app.models.candidature import Candidature
 from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile
 from app.models.user import User
 from app.schemas.admin import AdminLogOut, StatistiquesGlobales
 from app.services.admin_logs import logger_action_admin
@@ -161,3 +163,48 @@ def list_admin_logs(
     from app.models.admin_log import AdminLog
 
     return db.query(AdminLog).order_by(AdminLog.created_at.desc()).limit(100).all()
+
+
+@router.get("/statistiques/detail")
+def statistiques_detail(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Indicateurs detailles : inscriptions par mois, entreprises par secteur,
+    candidatures par offre, taux de recrutement, offres par localisation."""
+    mois = func.to_char(User.created_at, "YYYY-MM").label("mois")
+    inscriptions = db.query(mois, func.count(User.id)).group_by(mois).order_by(mois).all()
+
+    secteurs = (
+        db.query(EntrepriseProfile.secteur, func.count(EntrepriseProfile.id))
+        .group_by(EntrepriseProfile.secteur)
+        .all()
+    )
+
+    par_offre = (
+        db.query(Offre.id, Offre.titre, func.count(Candidature.id))
+        .outerjoin(Candidature, Candidature.offre_id == Offre.id)
+        .group_by(Offre.id, Offre.titre)
+        .all()
+    )
+
+    localisations = (
+        db.query(Offre.localisation, func.count(Offre.id)).group_by(Offre.localisation).all()
+    )
+
+    total = db.query(Candidature).count()
+    acceptees = db.query(Candidature).filter(Candidature.statut == "acceptee").count()
+
+    return {
+        "inscriptions_par_mois": [{"mois": m, "total": n} for m, n in inscriptions],
+        "entreprises_par_secteur": [
+            {"secteur": s or "non renseigne", "total": n} for s, n in secteurs
+        ],
+        "candidatures_par_offre": [
+            {"offre_id": str(i), "titre": t, "total": n} for i, t, n in par_offre
+        ],
+        "offres_par_localisation": [
+            {"localisation": loc or "non renseignee", "total": n} for loc, n in localisations
+        ],
+        "taux_recrutement": round((acceptees / total) * 100, 1) if total else 0.0,
+    }

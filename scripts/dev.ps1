@@ -1,8 +1,8 @@
-$root = Split-Path -Parent $PSScriptRoot
+﻿$root = Split-Path -Parent $PSScriptRoot
 
 Write-Host ""
 Write-Host "Demarrage du backend (FastAPI)..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend'; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend'; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload"
 
 Start-Sleep -Seconds 2
 

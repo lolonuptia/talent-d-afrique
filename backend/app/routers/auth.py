@@ -45,7 +45,9 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-def register(request: Request, response: Response, payload: UserCreate, db: Session = Depends(get_db)):
+def register(
+    request: Request, response: Response, payload: UserCreate, db: Session = Depends(get_db)
+):
     if not payload.consentement:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

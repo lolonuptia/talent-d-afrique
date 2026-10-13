@@ -1,6 +1,7 @@
 package com.talentdafrique.app.di
 
 import android.content.Context
+import android.os.Build
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.talentdafrique.app.BuildConfig
@@ -63,11 +64,27 @@ object NetworkModule {
             .build()
     }
 
+    private fun isEmulator(): Boolean {
+        return Build.FINGERPRINT.startsWith("generic")
+            || Build.FINGERPRINT.startsWith("unknown")
+            || Build.MODEL.contains("google_sdk")
+            || Build.MODEL.contains("Emulator")
+            || Build.MODEL.contains("Android SDK built for x86")
+            || Build.MANUFACTURER.contains("Genymotion")
+            || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+            || "google_sdk" == Build.PRODUCT
+            || Build.PRODUCT.contains("sdk_gphone")
+            || Build.PRODUCT.contains("emulator")
+            || Build.MODEL.contains("sdk_gphone")
+            || Build.HARDWARE.contains("ranchu")
+            || Build.HARDWARE.contains("goldfish")
+    }
+
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient, moshi: Moshi): Retrofit =
         Retrofit.Builder()
-            .baseUrl(BuildConfig.BASE_URL)
+            .baseUrl(if (isEmulator()) BuildConfig.BASE_URL else BuildConfig.DEVICE_BASE_URL)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

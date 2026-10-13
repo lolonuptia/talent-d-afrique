@@ -32,3 +32,15 @@ def extract_skills_from_text(text: str) -> list[str]:
             found_skills.append(canonical_name)
 
     return found_skills
+
+
+def expand_skill(term: str) -> list[str]:
+    """Renvoie toutes les variantes connues d'une competence ("js" -> javascript, js, ecmascript).
+
+    Si le terme est inconnu du dictionnaire, il est renvoye tel quel.
+    """
+    t = term.strip().lower()
+    for canonical, variants in SKILLS_DICTIONARY.items():
+        if t == canonical.lower() or t in variants:
+            return sorted({canonical.lower(), *variants})
+    return [t]

@@ -6,8 +6,34 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import engine  # noqa: F401
 from app.core.limiter import limiter
-from app.models import candidature, notification, offre, profiles, user  # noqa: F401
-from app.routers import admin, auth, candidatures, cv, health, notifications, offres, users
+from app.models import (  # noqa: F401
+    candidature,
+    certification,
+    entretien,
+    favori,
+    message,
+    notification,
+    offre,
+    portfolio,
+    profiles,
+    user,
+)
+from app.routers import (
+    admin,
+    auth,
+    candidatures,
+    certifications,
+    cv,
+    entretiens,
+    favoris,
+    health,
+    messages,
+    notifications,
+    offres,
+    talents,
+    users,
+)
+from app.routers import portfolio as portfolio_router
 from app.routers import profiles as profiles_router
 
 app = FastAPI(
@@ -34,8 +60,14 @@ app.include_router(profiles_router.router, prefix="/api/profiles", tags=["profil
 app.include_router(cv.router, prefix="/api/profiles", tags=["cv"])
 app.include_router(offres.router, prefix="/api/offres", tags=["offres"])
 app.include_router(candidatures.router, prefix="/api/candidatures", tags=["candidatures"])
+app.include_router(favoris.router, prefix="/api/favoris", tags=["favoris"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(talents.router, prefix="/api/talents", tags=["talents"])
+app.include_router(certifications.router, prefix="/api/certifications", tags=["certifications"])
+app.include_router(portfolio_router.router, prefix="/api/portfolio", tags=["portfolio"])
+app.include_router(entretiens.router, prefix="/api/entretiens", tags=["entretiens"])
+app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 
 
 @app.get("/")

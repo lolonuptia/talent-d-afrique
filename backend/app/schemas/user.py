@@ -29,6 +29,7 @@ class UserOut(BaseModel):
     nom: str
     email: EmailStr
     type_profil: str
+    is_admin: bool = False
     created_at: datetime
 
     class Config:

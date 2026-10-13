@@ -10,9 +10,11 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings
 from app.core.database import Base
+from app.models import certification, entretien, message, portfolio  # noqa: F401
 from app.models import (  # noqa: F401  (necessaire pour qu'Alembic voie les modeles)
     admin_log,
     candidature,
+    favori,
     notification,
     offre,
     profiles,
