@@ -20,6 +20,7 @@ data class RegisterUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val registerSuccess: Boolean = false,
+    val consentement: Boolean = false,
 )
 
 /**
@@ -50,6 +51,10 @@ class RegisterViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(confirmationMotDePasse = value, errorMessage = null)
     }
 
+    fun onConsentementChange(value: Boolean) {
+        _uiState.value = _uiState.value.copy(consentement = value, errorMessage = null)
+    }
+
     fun register() {
         val state = _uiState.value
 
@@ -57,12 +62,17 @@ class RegisterViewModel @Inject constructor(
             _uiState.value = state.copy(errorMessage = "Merci de remplir tous les champs.")
             return
         }
-        if (state.motDePasse.length < 6) {
-            _uiState.value = state.copy(errorMessage = "Le mot de passe doit contenir au moins 6 caractères.")
+        if (state.motDePasse.length < 8) {
+            _uiState.value = state.copy(errorMessage = "Le mot de passe doit contenir au moins 8 caractères.")
             return
         }
         if (state.motDePasse != state.confirmationMotDePasse) {
             _uiState.value = state.copy(errorMessage = "Les mots de passe ne correspondent pas.")
+            return
+        }
+
+        if (!state.consentement) {
+            _uiState.value = state.copy(errorMessage = "Tu dois accepter les conditions pour créer ton compte.")
             return
         }
 
@@ -74,6 +84,7 @@ class RegisterViewModel @Inject constructor(
                     email = state.email,
                     motDePasse = state.motDePasse,
                     typeProfil = TypeProfil.ETUDIANT,
+                    consentement = state.consentement,
                 )
             ) {
                 is Result.Success -> {

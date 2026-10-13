@@ -1,5 +1,7 @@
 package com.talentdafrique.app.ui.screens.offres
 
+import com.talentdafrique.app.ui.components.formatMontant
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,8 +41,8 @@ private fun libelleContrat(type: TypeContrat): String = when (type) {
 }
 
 private fun couleurScore(score: Double): Color = when {
-    score >= 0.7 -> ScoreHigh
-    score >= 0.4 -> ScoreMedium
+    score >= 70.0 -> ScoreHigh
+    score >= 40.0 -> ScoreMedium
     else -> ScoreLow
 }
 
@@ -92,7 +94,7 @@ fun OffreCard(
                             )
                         }
                         Text(
-                            text = "${(score * 100).toInt()}% match",
+                            text = "${score.toInt()}% match",
                             style = MaterialTheme.typography.labelMedium,
                             color = color,
                             modifier = Modifier.padding(start = 6.dp),
@@ -133,7 +135,7 @@ fun OffreCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        text = "$it €",
+                        text = formatMontant(it),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp),

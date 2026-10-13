@@ -1,0 +1,1883 @@
+﻿
+===== backend\app\services\matching.py =====
+
+from app.core.matching_config import (
+    POIDS_COMPETENCES_OBLIGATOIRES,
+    POIDS_COMPETENCES_SOUHAITEES,
+    POIDS_DISPONIBILITE,
+    POIDS_EXPERIENCE,
+    POIDS_SOFT_SKILLS,
+    SEUIL_RECOMMANDATION,
+)
+from app.core.skills_dictionary import extract_skills_from_text
+
+
+def _texte_vers_ensemble_competences(texte: str | None) -> set[str]:
+    """Convertit un texte libre (ex: 'Python, React, SQL') en un ensemble de
+    competences normalisees, en reutilisant le dictionnaire de synonymes."""
+    if not texte:
+        return set()
+    detectees = set(extract_skills_from_text(texte))
+    termes_bruts = {t.strip() for t in texte.split(",") if t.strip()}
+    return detectees | termes_bruts
+
+
+def _score_couverture(requis: set[str], possede: set[str]) -> float:
+    """Retourne le pourcentage (0-100) de l'ensemble 'requis' couvert par 'possede'.
+    Renvoie 100 si rien n'est requis (rien a satisfaire)."""
+    if not requis:
+        return 100.0
+    intersection = {r for r in requis if any(r.lower() == p.lower() for p in possede)}
+    return (len(intersection) / len(requis)) * 100
+
+
+def _score_disponibilite(candidat_dispo: str | None, offre_dispo: str | None) -> float:
+    if not offre_dispo:
+        return 100.0
+    if not candidat_dispo:
+        return 0.0
+    return 100.0 if candidat_dispo.strip().lower() == offre_dispo.strip().lower() else 0.0
+
+
+def _score_experience(candidat_annees: int | None, offre_niveau: str | None) -> float:
+    """Heuristique simple pour la V1 : compare un nombre d'annees d'experience
+    a un niveau demande exprime en texte libre. A affiner en V2 avec le NLP."""
+    if not offre_niveau:
+        return 100.0
+    if candidat_annees is None:
+        return 50.0
+
+    niveau = offre_niveau.lower()
+    if "debutant" in niveau or "junior" in niveau:
+        return 100.0 if candidat_annees <= 2 else 70.0
+    if "senior" in niveau:
+        return 100.0 if candidat_annees >= 5 else 40.0
+    return 80.0
+
+
+def _score_tjm(candidat_tjm: float | None, offre_budget_tjm: float | None) -> float:
+    """Compare le TJM du freelance au budget de la mission.
+    Score maximal si le TJM du freelance rentre dans le budget, decroissant au-dela."""
+    if not offre_budget_tjm:
+        return 100.0
+    if candidat_tjm is None:
+        return 50.0
+    if candidat_tjm <= offre_budget_tjm:
+        return 100.0
+    depassement = (candidat_tjm - offre_budget_tjm) / offre_budget_tjm
+    return max(0.0, 100.0 - depassement * 100)
+
+
+def calculer_score_matching(
+    *,
+    candidat_competences: str | None,
+    candidat_disponibilite: str | None,
+    candidat_annees_experience: int | None,
+    candidat_tjm: float | None = None,
+    offre_competences_obligatoires: str | None,
+    offre_competences_souhaitees: str | None,
+    offre_soft_skills: str | None,
+    offre_disponibilite: str | None,
+    offre_niveau_experience: str | None,
+    offre_type_contrat: str | None = None,
+    offre_budget_tjm: float | None = None,
+) -> dict:
+    """Calcule le score de compatibilite candidat/offre selon la ponderation V1.
+    Retourne le score global (0-100) et le detail par critere, pour la
+    transparence demandee dans le cahier des charges (section 3 : 'pourquoi ce score').
+
+    Si un critere n'a aucun signal fiable (ex : un etudiant n'a pas de nombre
+    d'annees d'experience saisi), il est exclu du calcul du score global plutot
+    que de peser avec une valeur neutre par defaut - cela evite de diluer le
+    score avec un critere non mesure. Le detail reste toutefois affiche pour
+    la transparence, avec le score neutre qu'il aurait eu."""
+
+    competences_candidat = _texte_vers_ensemble_competences(candidat_competences)
+
+    est_mission = offre_type_contrat == "mission"
+    experience_score = (
+        _score_tjm(candidat_tjm, offre_budget_tjm)
+        if est_mission
+        else _score_experience(candidat_annees_experience, offre_niveau_experience)
+    )
+    # Signal fiable si : mission (le TJM est toujours renseigne ou neutre a 100),
+    # ou si le candidat a bien un nombre d'annees d'experience saisi.
+    experience_fiable = est_mission or candidat_annees_experience is not None
+
+    detail = {
+        "competences_obligatoires": _score_couverture(
+            _texte_vers_ensemble_competences(offre_competences_obligatoires),
+            competences_candidat,
+        ),
+        "competences_souhaitees": _score_couverture(
+            _texte_vers_ensemble_competences(offre_competences_souhaitees),
+            competences_candidat,
+        ),
+        "experience": experience_score,
+        "disponibilite": _score_disponibilite(candidat_disponibilite, offre_disponibilite),
+        "soft_skills": _score_couverture(
+            _texte_vers_ensemble_competences(offre_soft_skills), competences_candidat
+        ),
+    }
+
+    poids = {
+        "competences_obligatoires": POIDS_COMPETENCES_OBLIGATOIRES,
+        "competences_souhaitees": POIDS_COMPETENCES_SOUHAITEES,
+        "experience": POIDS_EXPERIENCE if experience_fiable else 0,
+        "disponibilite": POIDS_DISPONIBILITE,
+        "soft_skills": POIDS_SOFT_SKILLS,
+    }
+    poids_total = sum(poids.values()) or 1  # evite une division par zero (cas limite improbable)
+
+    # Moyenne ponderee : diviser par poids_total (et non 100 en dur) permet de
+    # renormaliser automatiquement quand un critere est exclu du calcul.
+    score_global = sum(detail[k] * poids[k] for k in detail) / poids_total
+
+    return {
+        "score_global": round(score_global, 1),
+        "detail": {k: round(v, 1) for k, v in detail.items()},
+        "recommandee": score_global >= SEUIL_RECOMMANDATION,
+    }
+
+===== backend\app\schemas\user.py =====
+
+import uuid
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+class UserCreate(BaseModel):
+    nom: str = Field(min_length=2)
+    email: EmailStr
+    mot_de_passe: str = Field(min_length=8)
+    type_profil: Literal["etudiant", "entreprise", "ecole", "freelance"]
+    consentement: bool
+    consent_version: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    mot_de_passe: str
+
+
+class UserUpdate(BaseModel):
+    nom: str | None = Field(default=None, min_length=2)
+    email: EmailStr | None = None
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    nom: str
+    email: EmailStr
+    type_profil: str
+    is_admin: bool = False
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+===== backend\app\schemas\candidature.py =====
+
+import uuid
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from app.schemas.offre import OffreOut
+
+
+class CandidatureCreate(BaseModel):
+    offre_id: uuid.UUID
+    message: str | None = Field(default=None, max_length=2000)
+
+
+class CandidatureStatutUpdate(BaseModel):
+    statut: Literal["recue", "en_cours", "entretien", "refusee", "acceptee"]
+
+
+class CandidatureOut(BaseModel):
+    id: uuid.UUID
+    offre_id: uuid.UUID
+    candidat_id: uuid.UUID
+    message: str | None
+    statut: str
+    created_at: datetime
+    offre: OffreOut | None = None
+
+    class Config:
+        from_attributes = True
+
+===== backend\app\schemas\profiles.py =====
+
+import uuid
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+DisponibiliteCandidat = Literal["immediate", "1_mois", "3_mois", "6_mois"]
+
+
+class EntrepriseProfileIn(BaseModel):
+    logo_url: str | None = None
+    description: str | None = None
+    secteur: str | None = None
+    taille: str | None = None
+    culture: str | None = None
+    localisation: str | None = None
+
+
+class EntrepriseProfileOut(EntrepriseProfileIn):
+    id: uuid.UUID
+    user_id: uuid.UUID
+
+    class Config:
+        from_attributes = True
+
+
+class EtudiantProfileIn(BaseModel):
+    cv_url: str | None = None
+    competences: str | None = None
+    experiences: str | None = None
+    formations: str | None = None
+    disponibilite: DisponibiliteCandidat | None = None
+    visible_aux_entreprises: bool | None = None
+    preferences: str | None = None
+    ecole_id: uuid.UUID | None = None
+
+
+class EtudiantProfileOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    cv_url: str | None = None
+    competences: str | None = None
+    experiences: str | None = None
+    formations: str | None = None
+    disponibilite: str | None = None  # tolerant : ne casse pas la lecture de donnees existantes
+    visible_aux_entreprises: bool = False
+    preferences: str | None = None
+    ecole_id: uuid.UUID | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class EcoleProfileIn(BaseModel):
+    nom_etablissement: str | None = None
+    description: str | None = None
+    localisation: str | None = None
+
+
+class EcoleProfileOut(EcoleProfileIn):
+    id: uuid.UUID
+    user_id: uuid.UUID
+
+    class Config:
+        from_attributes = True
+
+
+class FreelanceProfileIn(BaseModel):
+    competences: str | None = None
+    tjm: float | None = Field(default=None, ge=0)
+    disponibilite: DisponibiliteCandidat | None = None
+    visible_aux_entreprises: bool | None = None
+    portfolio_url: str | None = None
+    annees_experience: int | None = Field(default=None, ge=0)
+
+
+class FreelanceProfileOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    competences: str | None = None
+    tjm: float | None = None
+    disponibilite: str | None = None  # tolerant : ne casse pas la lecture de donnees existantes
+    visible_aux_entreprises: bool = False
+    portfolio_url: str | None = None
+    annees_experience: int | None = None
+
+    class Config:
+        from_attributes = True
+
+===== backend\app\routers\notifications.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.notification import Notification
+from app.models.user import User
+from app.schemas.notification import NotificationOut
+
+router = APIRouter()
+
+
+@router.get("", response_model=list[NotificationOut])
+def list_my_notifications(
+    non_lues_seulement: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    if non_lues_seulement:
+        query = query.filter(Notification.lue.is_(False))
+    return query.order_by(Notification.created_at.desc()).all()
+
+
+@router.patch("/{notification_id}/lue", response_model=NotificationOut)
+def marquer_comme_lue(
+    notification_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    notification = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
+        .first()
+    )
+    if notification is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification introuvable."
+        )
+
+    notification.lue = True
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+===== backend\app\routers\profiles.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.candidature import Candidature
+from app.models.offre import Offre
+from app.models.profiles import (
+    EcoleProfile,
+    EntrepriseProfile,
+    EtudiantProfile,
+    FreelanceProfile,
+)
+from app.models.user import User
+from app.schemas.matching import OffreAvecScore
+from app.schemas.offre import OffreOut
+from app.schemas.profiles import (
+    EcoleProfileIn,
+    EcoleProfileOut,
+    EntrepriseProfileIn,
+    EntrepriseProfileOut,
+    EtudiantProfileIn,
+    EtudiantProfileOut,
+    FreelanceProfileIn,
+    FreelanceProfileOut,
+)
+from app.services.matching import calculer_score_matching
+
+router = APIRouter()
+
+PROFILE_CONFIG = {
+    "entreprise": (EntrepriseProfile, EntrepriseProfileOut),
+    "etudiant": (EtudiantProfile, EtudiantProfileOut),
+    "ecole": (EcoleProfile, EcoleProfileOut),
+    "freelance": (FreelanceProfile, FreelanceProfileOut),
+}
+
+
+@router.get("/me")
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    model, _ = PROFILE_CONFIG[current_user.type_profil]
+    profile = db.query(model).filter(model.user_id == current_user.id).first()
+
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aucun profil complete pour cet utilisateur pour le moment.",
+        )
+    return profile
+
+
+@router.put("/me")
+def upsert_my_profile(
+    payload: EntrepriseProfileIn | EtudiantProfileIn | EcoleProfileIn | FreelanceProfileIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    model, _ = PROFILE_CONFIG[current_user.type_profil]
+    profile = db.query(model).filter(model.user_id == current_user.id).first()
+
+    data = payload.model_dump(exclude_unset=True)
+
+    if profile is None:
+        profile = model(id=uuid.uuid4(), user_id=current_user.id, **data)
+        db.add(profile)
+    else:
+        for key, value in data.items():
+            setattr(profile, key, value)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+@router.post("/etudiant/rattacher-ecole/{ecole_id}", response_model=EtudiantProfileOut)
+def rattacher_a_une_ecole(
+    ecole_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permet a un etudiant de se rattacher a une ecole existante."""
+    if current_user.type_profil != "etudiant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul un etudiant peut se rattacher a une ecole.",
+        )
+
+    ecole = db.query(EcoleProfile).filter(EcoleProfile.id == ecole_id).first()
+    if ecole is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ecole introuvable.")
+
+    profile = db.query(EtudiantProfile).filter(EtudiantProfile.user_id == current_user.id).first()
+    if profile is None:
+        profile = EtudiantProfile(id=uuid.uuid4(), user_id=current_user.id)
+        db.add(profile)
+
+    profile.ecole_id = ecole_id
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+@router.get("/ecole/{ecole_id}/etudiants", response_model=list[EtudiantProfileOut])
+def list_etudiants_de_ecole(
+    ecole_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.type_profil != "ecole":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une ecole peut consulter cette liste.",
+        )
+
+    return db.query(EtudiantProfile).filter(EtudiantProfile.ecole_id == ecole_id).all()
+
+
+@router.get("/ecole/{ecole_id}/suggestions", response_model=dict[str, list[OffreAvecScore]])
+def suggestions_par_etudiant(
+    ecole_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Pour chaque etudiant de l'ecole, liste les offres les plus adaptees (cf. section 2.4)."""
+    if current_user.type_profil != "ecole":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une ecole peut consulter ces suggestions.",
+        )
+
+    etudiants = db.query(EtudiantProfile).filter(EtudiantProfile.ecole_id == ecole_id).all()
+    offres_actives = db.query(Offre).filter(Offre.statut == "active").all()
+
+    resultats: dict[str, list[OffreAvecScore]] = {}
+
+    for etudiant in etudiants:
+        scores_pour_etudiant = []
+        for offre in offres_actives:
+            matching = calculer_score_matching(
+                candidat_competences=etudiant.competences,
+                candidat_disponibilite=etudiant.disponibilite,
+                candidat_annees_experience=None,
+                candidat_tjm=None,
+                offre_competences_obligatoires=offre.competences_obligatoires,
+                offre_competences_souhaitees=offre.competences_souhaitees,
+                offre_soft_skills=offre.soft_skills,
+                offre_disponibilite=offre.disponibilite,
+                offre_niveau_experience=offre.niveau_experience,
+                offre_type_contrat=offre.type_contrat,
+                offre_budget_tjm=offre.budget_tjm,
+            )
+            if matching["recommandee"]:
+                scores_pour_etudiant.append(
+                    OffreAvecScore(
+                        **OffreOut.model_validate(offre).model_dump(),
+                        score_global=matching["score_global"],
+                        recommandee=matching["recommandee"],
+                        detail_score=matching["detail"],
+                    )
+                )
+
+        scores_pour_etudiant.sort(key=lambda o: o.score_global, reverse=True)
+        resultats[str(etudiant.user_id)] = scores_pour_etudiant[:5]
+
+    return resultats
+
+
+@router.get("/ecole/{ecole_id}/statistiques")
+def statistiques_ecole(
+    ecole_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Statistiques simples d'employabilite de la promotion (cf. section 2.4)."""
+    if current_user.type_profil != "ecole":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une ecole peut consulter ces statistiques.",
+        )
+
+    etudiants = db.query(EtudiantProfile).filter(EtudiantProfile.ecole_id == ecole_id).all()
+    total_etudiants = len(etudiants)
+
+    etudiant_user_ids = [e.user_id for e in etudiants]
+    candidatures = (
+        db.query(Candidature).filter(Candidature.candidat_id.in_(etudiant_user_ids)).all()
+        if etudiant_user_ids
+        else []
+    )
+
+    total_candidatures = len(candidatures)
+    total_acceptees = len([c for c in candidatures if c.statut == "acceptee"])
+    etudiants_places = len({c.candidat_id for c in candidatures if c.statut == "acceptee"})
+
+    return {
+        "total_etudiants": total_etudiants,
+        "total_candidatures_envoyees": total_candidatures,
+        "total_candidatures_acceptees": total_acceptees,
+        "etudiants_places": etudiants_places,
+        "taux_placement": (
+            round((etudiants_places / total_etudiants) * 100, 1) if total_etudiants > 0 else 0
+        ),
+    }
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\RegisterScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.theme.Forest20
+import com.talentdafrique.app.ui.theme.Forest40
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RegisterScreen(
+    onRegisterSuccess: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    viewModel: RegisterViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.registerSuccess) {
+        if (uiState.registerSuccess) onRegisterSuccess()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
+                .background(Brush.linearGradient(colors = listOf(Forest40, Forest20))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Crée ton compte",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                )
+                Text(
+                    text = "Trouve le stage ou l'emploi qui te correspond",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp)) {
+            OutlinedTextField(
+                value = uiState.nom,
+                onValueChange = viewModel::onNomChange,
+                label = { Text("Nom complet") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            OutlinedTextField(
+                value = uiState.email,
+                onValueChange = viewModel::onEmailChange,
+                label = { Text("Email") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            )
+
+            OutlinedTextField(
+                value = uiState.motDePasse,
+                onValueChange = viewModel::onMotDePasseChange,
+                label = { Text("Mot de passe") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = null,
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            )
+
+            OutlinedTextField(
+                value = uiState.confirmationMotDePasse,
+                onValueChange = viewModel::onConfirmationMotDePasseChange,
+                label = { Text("Confirmer le mot de passe") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            )
+
+            uiState.errorMessage?.let { message ->
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                ) {
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+            }
+
+            Button(
+                onClick = viewModel::register,
+                enabled = !uiState.isLoading,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 24.dp),
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.height(22.dp), strokeWidth = 2.5.dp)
+                } else {
+                    Text("Créer mon compte", style = MaterialTheme.typography.titleSmall)
+                }
+            }
+
+            TextButton(
+                onClick = onNavigateToLogin,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Déjà un compte ? Se connecter")
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\RegisterViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class RegisterUiState(
+    val nom: String = "",
+    val email: String = "",
+    val motDePasse: String = "",
+    val confirmationMotDePasse: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val registerSuccess: Boolean = false,
+)
+
+/**
+ * Le mobile est réservé aux étudiants (le web gère freelance/entreprise/école) —
+ * type_profil est donc fixé silencieusement, pas de sélecteur exposé à l'utilisateur.
+ */
+@HiltViewModel
+class RegisterViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(RegisterUiState())
+    val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
+
+    fun onNomChange(value: String) {
+        _uiState.value = _uiState.value.copy(nom = value, errorMessage = null)
+    }
+
+    fun onEmailChange(value: String) {
+        _uiState.value = _uiState.value.copy(email = value, errorMessage = null)
+    }
+
+    fun onMotDePasseChange(value: String) {
+        _uiState.value = _uiState.value.copy(motDePasse = value, errorMessage = null)
+    }
+
+    fun onConfirmationMotDePasseChange(value: String) {
+        _uiState.value = _uiState.value.copy(confirmationMotDePasse = value, errorMessage = null)
+    }
+
+    fun register() {
+        val state = _uiState.value
+
+        if (state.nom.isBlank() || state.email.isBlank() || state.motDePasse.isBlank()) {
+            _uiState.value = state.copy(errorMessage = "Merci de remplir tous les champs.")
+            return
+        }
+        if (state.motDePasse.length < 6) {
+            _uiState.value = state.copy(errorMessage = "Le mot de passe doit contenir au moins 6 caractères.")
+            return
+        }
+        if (state.motDePasse != state.confirmationMotDePasse) {
+            _uiState.value = state.copy(errorMessage = "Les mots de passe ne correspondent pas.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true, errorMessage = null)
+            when (
+                val result = authRepository.register(
+                    nom = state.nom,
+                    email = state.email,
+                    motDePasse = state.motDePasse,
+                    typeProfil = TypeProfil.ETUDIANT,
+                )
+            ) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, registerSuccess = true)
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\LoginViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class LoginUiState(
+    val email: String = "",
+    val motDePasse: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val loginSuccess: Boolean = false,
+)
+
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    fun onEmailChange(value: String) {
+        _uiState.value = _uiState.value.copy(email = value, errorMessage = null)
+    }
+
+    fun onMotDePasseChange(value: String) {
+        _uiState.value = _uiState.value.copy(motDePasse = value, errorMessage = null)
+    }
+
+    fun login() {
+        val state = _uiState.value
+        if (state.email.isBlank() || state.motDePasse.isBlank()) {
+            _uiState.value = state.copy(errorMessage = "Renseigne ton email et ton mot de passe.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true, errorMessage = null)
+            when (val result = authRepository.login(state.email, state.motDePasse)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true)
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = result.message,
+                    )
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\candidatures\CandidaturesScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.candidatures
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.data.remote.dto.StatutCandidature
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.components.StatusChip
+import com.talentdafrique.app.ui.components.statutCandidatureStyle
+
+private fun iconeStatut(statut: StatutCandidature): ImageVector = when (statut) {
+    StatutCandidature.RECUE -> Icons.Filled.MailOutline
+    StatutCandidature.EN_COURS -> Icons.Filled.HourglassTop
+    StatutCandidature.ENTRETIEN -> Icons.Filled.Groups
+    StatutCandidature.REFUSEE -> Icons.Filled.Cancel
+    StatutCandidature.ACCEPTEE -> Icons.Filled.CheckCircle
+}
+
+@Composable
+fun CandidaturesScreen(
+    viewModel: CandidaturesViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadCandidatures,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        uiState.candidatures.isEmpty() -> EmptyView(
+            title = "Aucune candidature envoyée",
+            subtitle = "Postule à une offre pour la voir apparaître ici.",
+            icon = Icons.Outlined.Assignment,
+        )
+
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(uiState.candidatures, key = { it.id }) { candidature ->
+                val style = statutCandidatureStyle(candidature.statut)
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Row(modifier = Modifier.padding(16.dp)) {
+                        // Pastille icône de statut — repère visuel immédiat
+                        Surface(
+                            color = style.color.copy(alpha = 0.14f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(44.dp),
+                        ) {
+                            Icon(
+                                imageVector = iconeStatut(candidature.statut),
+                                contentDescription = null,
+                                tint = style.color,
+                                modifier = Modifier.padding(11.dp),
+                            )
+                        }
+
+                        Column(modifier = Modifier.padding(start = 14.dp).fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Text(
+                                    text = candidature.offre?.titre ?: "Offre",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                    maxLines = 2,
+                                )
+                            }
+
+                            candidature.offre?.localisation?.let {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(start = 4.dp),
+                                    )
+                                }
+                            }
+
+                            StatusChip(style = style, modifier = Modifier.padding(top = 10.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\candidatures\CandidaturesViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.candidatures
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.CandidatureDto
+import com.talentdafrique.app.data.repository.CandidaturesRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class CandidaturesUiState(
+    val isLoading: Boolean = true,
+    val candidatures: List<CandidatureDto> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+@HiltViewModel
+class CandidaturesViewModel @Inject constructor(
+    private val candidaturesRepository: CandidaturesRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(CandidaturesUiState())
+    val uiState: StateFlow<CandidaturesUiState> = _uiState.asStateFlow()
+
+    init {
+        loadCandidatures()
+    }
+
+    fun loadCandidatures() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = candidaturesRepository.mesCandidatures()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, candidatures = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\notifications\NotificationsScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.notifications
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+
+@Composable
+fun NotificationsScreen(
+    viewModel: NotificationsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadNotifications,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        uiState.notifications.isEmpty() -> EmptyView(
+            title = "Aucune notification",
+            subtitle = "Tu seras notifié ici de toute nouvelle activité.",
+            icon = Icons.Outlined.NotificationsNone,
+        )
+
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(uiState.notifications, key = { it.id }) { notification ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !notification.lue) { viewModel.markAsRead(notification.id) },
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (notification.lue) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        },
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = if (notification.lue) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    } else {
+                        null
+                    },
+                ) {
+                    Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+                        Surface(
+                            shape = CircleShape,
+                            color = if (notification.lue) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.Notifications,
+                                    contentDescription = null,
+                                    tint = if (notification.lue) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    },
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                            Text(
+                                text = notification.titre,
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            notification.message?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                        }
+
+                        if (!notification.lue) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp).size(8.dp),
+                            ) {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\notifications\NotificationsViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.notifications
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import com.talentdafrique.app.data.repository.NotificationsRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class NotificationsUiState(
+    val isLoading: Boolean = true,
+    val notifications: List<NotificationDto> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+@HiltViewModel
+class NotificationsViewModel @Inject constructor(
+    private val notificationsRepository: NotificationsRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(NotificationsUiState())
+    val uiState: StateFlow<NotificationsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadNotifications()
+    }
+
+    fun loadNotifications() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = notificationsRepository.listNotifications()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, notifications = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    fun markAsRead(id: String) {
+        viewModelScope.launch {
+            when (notificationsRepository.markAsRead(id)) {
+                is Result.Success -> loadNotifications()
+                is Result.Error -> Unit
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffresListScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+
+private val typeFilters = listOf(
+    null to "Toutes",
+    "stage" to "Stage",
+    "cdd" to "CDD",
+    "cdi" to "CDI",
+    "mission" to "Mission",
+)
+
+@Composable
+fun OffresListScreen(
+    onOffreClick: (String) -> Unit,
+    viewModel: OffresListViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(typeFilters) { (value, label) ->
+                FilterChip(
+                    selected = uiState.selectedType == value,
+                    onClick = { viewModel.onTypeFilterSelected(value) },
+                    label = { androidx.compose.material3.Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(),
+                )
+            }
+        }
+
+        when {
+            uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+            uiState.errorMessage != null -> ErrorView(
+                message = uiState.errorMessage ?: "",
+                onRetry = viewModel::loadOffres,
+                icon = Icons.Outlined.WifiOff,
+            )
+
+            uiState.offres.isEmpty() -> EmptyView(
+                title = "Aucune offre trouvée",
+                subtitle = "Essaie un autre filtre ou reviens plus tard.",
+                icon = Icons.Outlined.SearchOff,
+            )
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(uiState.offres, key = { it.id }) { offre ->
+                    OffreCard(offre = offre, onClick = { onOffreClick(offre.id) })
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffresListViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.OffresRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class OffresListUiState(
+    val isLoading: Boolean = true,
+    val offres: List<OffreDto> = emptyList(),
+    val errorMessage: String? = null,
+    val selectedType: String? = null,
+)
+
+@HiltViewModel
+class OffresListViewModel @Inject constructor(
+    private val offresRepository: OffresRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(OffresListUiState())
+    val uiState: StateFlow<OffresListUiState> = _uiState.asStateFlow()
+
+    init {
+        loadOffres()
+    }
+
+    fun onTypeFilterSelected(type: String?) {
+        _uiState.value = _uiState.value.copy(selectedType = type)
+        loadOffres()
+    }
+
+    fun loadOffres() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = offresRepository.listOffres(typeContrat = _uiState.value.selectedType)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offres = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreCard.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.ArrowOutward
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.remote.dto.TypeContrat
+import com.talentdafrique.app.ui.theme.ScoreHigh
+import com.talentdafrique.app.ui.theme.ScoreLow
+import com.talentdafrique.app.ui.theme.ScoreMedium
+
+private fun libelleContrat(type: TypeContrat): String = when (type) {
+    TypeContrat.STAGE -> "Stage"
+    TypeContrat.CDD -> "CDD"
+    TypeContrat.CDI -> "CDI"
+    TypeContrat.MISSION -> "Mission"
+}
+
+private fun couleurScore(score: Double): Color = when {
+    score >= 0.7 -> ScoreHigh
+    score >= 0.4 -> ScoreMedium
+    else -> ScoreLow
+}
+
+@Composable
+fun OffreCard(
+    offre: OffreDto,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp, pressedElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shape = MaterialTheme.shapes.extraSmall,
+                ) {
+                    Text(
+                        text = libelleContrat(offre.typeContrat),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
+
+                offre.scoreGlobal?.let { score ->
+                    val color = couleurScore(score)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            color = color.copy(alpha = 0.14f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(22.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.padding(4.dp),
+                            )
+                        }
+                        Text(
+                            text = "${(score * 100).toInt()}% match",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = color,
+                            modifier = Modifier.padding(start = 6.dp),
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = offre.titre,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+                offre.localisation?.let {
+                    Icon(
+                        imageVector = Icons.Outlined.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+
+                offre.remuneration?.let {
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.Payments,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "$it €",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Voir l'offre",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Icon(
+                    imageVector = Icons.Outlined.ArrowOutward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp).size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\AuthApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.LoginRequest
+import com.talentdafrique.app.data.remote.dto.RefreshRequest
+import com.talentdafrique.app.data.remote.dto.RegisterRequest
+import com.talentdafrique.app.data.remote.dto.TokenResponse
+import com.talentdafrique.app.data.remote.dto.UserDto
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+
+/** Miroir de app/routers/auth.py */
+interface AuthApi {
+
+    @POST("auth/register")
+    suspend fun register(@Body body: RegisterRequest): TokenResponse
+
+    @POST("auth/login")
+    suspend fun login(@Body body: LoginRequest): TokenResponse
+
+    @POST("auth/refresh")
+    suspend fun refresh(@Body body: RefreshRequest): TokenResponse
+
+    @GET("auth/me")
+    suspend fun me(): UserDto
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\NotificationsApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+import retrofit2.http.Path
+
+/**
+ * Miroir de la nouvelle étape 9 (notifications). En l'absence de push (FCM),
+ * l'app fait du polling : on rappelle listNotifications() périodiquement
+ * (ex: au retour au premier plan de l'app, ou toutes les X minutes via
+ * WorkManager) pour rafraîchir le badge de compteur non-lues.
+ */
+interface NotificationsApi {
+
+    @GET("notifications")
+    suspend fun listNotifications(): List<NotificationDto>
+
+    @GET("notifications/unread-count")
+    suspend fun unreadCount(): Map<String, Int> // ex: {"count": 3}
+
+    @PATCH("notifications/{id}/lue")
+    suspend fun markAsRead(@Path("id") id: String): NotificationDto
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\repository\NotificationsRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.NotificationsApi
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class NotificationsRepository @Inject constructor(
+    private val notificationsApi: NotificationsApi,
+) {
+    suspend fun listNotifications(): Result<List<NotificationDto>> = try {
+        Result.Success(notificationsApi.listNotifications())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer les notifications.")
+    }
+
+    suspend fun markAsRead(id: String): Result<NotificationDto> = try {
+        Result.Success(notificationsApi.markAsRead(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de marquer la notification comme lue.")
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\repository\ProfilesRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.talentdafrique.app.data.remote.api.ProfilesApi
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Le backend renvoie un JSON qui varie selon le type de profil connecté.
+ * Retrofit ne peut pas typer dynamiquement le retour, donc on récupère un
+ * Map brut puis on le redésérialise vers le bon sous-type de ProfileDto.
+ */
+@Singleton
+class ProfilesRepository @Inject constructor(
+    private val profilesApi: ProfilesApi,
+    private val moshi: Moshi,
+) {
+    suspend fun getMyProfile(typeProfil: TypeProfil): Result<ProfileDto> = try {
+        val raw = profilesApi.getMyProfileRaw()
+        val mapAdapter = moshi.adapter<Map<String, Any?>>(
+            Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java),
+        )
+        val json = mapAdapter.toJson(raw)
+
+        val profile: ProfileDto? = when (typeProfil) {
+            TypeProfil.ETUDIANT -> moshi.adapter(ProfileDto.Etudiant::class.java).fromJson(json)
+            TypeProfil.ENTREPRISE -> moshi.adapter(ProfileDto.Entreprise::class.java).fromJson(json)
+            TypeProfil.ECOLE -> moshi.adapter(ProfileDto.Ecole::class.java).fromJson(json)
+            TypeProfil.FREELANCE -> moshi.adapter(ProfileDto.Freelance::class.java).fromJson(json)
+        }
+
+        profile?.let { Result.Success(it) } ?: Result.Error("Profil introuvable.")
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer ton profil.")
+    }
+
+    suspend fun updateMyProfile(fields: Map<String, Any?>): Result<Unit> = try {
+        profilesApi.updateMyProfile(fields)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de mettre à jour ton profil.")
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\repository\CandidaturesRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.CandidaturesApi
+import com.talentdafrique.app.data.remote.dto.CandidatureCreateRequest
+import com.talentdafrique.app.data.remote.dto.CandidatureDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class CandidaturesRepository @Inject constructor(
+    private val candidaturesApi: CandidaturesApi,
+) {
+    suspend fun postuler(offreId: String, message: String? = null): Result<CandidatureDto> = try {
+        Result.Success(candidaturesApi.postuler(CandidatureCreateRequest(offreId, message)))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible d'envoyer ta candidature.")
+    }
+
+    suspend fun mesCandidatures(): Result<List<CandidatureDto>> = try {
+        Result.Success(candidaturesApi.mesCandidatures())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer tes candidatures.")
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\di\NetworkModule.kt =====
+
+package com.talentdafrique.app.di
+
+import android.content.Context
+import android.os.Build
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.talentdafrique.app.BuildConfig
+import com.talentdafrique.app.data.remote.AuthInterceptor
+import com.talentdafrique.app.data.remote.TokenAuthenticator
+import com.talentdafrique.app.data.remote.api.AuthApi
+import com.talentdafrique.app.data.remote.api.CandidaturesApi
+import com.talentdafrique.app.data.remote.api.CvApi
+import com.talentdafrique.app.data.remote.api.NotificationsApi
+import com.talentdafrique.app.data.remote.api.OffresApi
+import com.talentdafrique.app.data.remote.api.ProfilesApi
+import com.talentdafrique.app.data.remote.api.UsersApi
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context = context
+
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
+    ): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .authenticator(tokenAuthenticator)
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun isEmulator(): Boolean {
+        return Build.FINGERPRINT.startsWith("generic")
+            || Build.FINGERPRINT.startsWith("unknown")
+            || Build.MODEL.contains("google_sdk")
+            || Build.MODEL.contains("Emulator")
+            || Build.MODEL.contains("Android SDK built for x86")
+            || Build.MANUFACTURER.contains("Genymotion")
+            || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+            || "google_sdk" == Build.PRODUCT
+            || Build.PRODUCT.contains("sdk_gphone")
+            || Build.PRODUCT.contains("emulator")
+            || Build.MODEL.contains("sdk_gphone")
+            || Build.HARDWARE.contains("ranchu")
+            || Build.HARDWARE.contains("goldfish")
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: OkHttpClient, moshi: Moshi): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(if (isEmulator()) BuildConfig.BASE_URL else BuildConfig.DEVICE_BASE_URL)
+            .client(client)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUsersApi(retrofit: Retrofit): UsersApi = retrofit.create(UsersApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideProfilesApi(retrofit: Retrofit): ProfilesApi = retrofit.create(ProfilesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCvApi(retrofit: Retrofit): CvApi = retrofit.create(CvApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOffresApi(retrofit: Retrofit): OffresApi = retrofit.create(OffresApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCandidaturesApi(retrofit: Retrofit): CandidaturesApi =
+        retrofit.create(CandidaturesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideNotificationsApi(retrofit: Retrofit): NotificationsApi =
+        retrofit.create(NotificationsApi::class.java)
+}

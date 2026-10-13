@@ -1,5 +1,7 @@
 package com.talentdafrique.app.data.repository
 
+import com.talentdafrique.app.data.remote.toUserMessage
+
 import com.talentdafrique.app.data.remote.api.CvApi
 import com.talentdafrique.app.data.remote.dto.ProfileDto
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -18,6 +20,6 @@ class CvRepository @Inject constructor(
         val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
         Result.Success(cvApi.uploadCv(part))
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Impossible d'envoyer ton CV.")
+        Result.Error(e.toUserMessage("Impossible d'envoyer ton CV."))
     }
 }

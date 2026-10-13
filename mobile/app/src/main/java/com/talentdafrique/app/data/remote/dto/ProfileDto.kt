@@ -16,6 +16,7 @@ sealed interface ProfileDto {
         val formations: String? = null,
         val disponibilite: String? = null,
         val preferences: String? = null,
+        @Json(name = "visible_aux_entreprises") val visibleAuxEntreprises: Boolean? = null,
     ) : ProfileDto
 
     @JsonClass(generateAdapter = true)

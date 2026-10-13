@@ -22,6 +22,8 @@ data class RegisterRequest(
     val email: String,
     @Json(name = "mot_de_passe") val motDePasse: String,
     @Json(name = "type_profil") val typeProfil: TypeProfil,
+    val consentement: Boolean,
+    @Json(name = "consent_version") val consentVersion: String = CONSENT_VERSION,
 )
 
 @JsonClass(generateAdapter = true)
@@ -49,4 +51,17 @@ data class UserDto(
     val email: String,
     @Json(name = "type_profil") val typeProfil: TypeProfil,
     @Json(name = "is_admin") val isAdmin: Boolean = false,
+)
+
+/** Version des CGU affichee a l'inscription (doit etre acceptee par le backend). */
+const val CONSENT_VERSION = "1.0"
+
+@JsonClass(generateAdapter = true)
+data class ForgotPasswordRequest(val email: String)
+
+@JsonClass(generateAdapter = true)
+data class ResetPasswordRequest(
+    val email: String,
+    val code: String,
+    @Json(name = "nouveau_mot_de_passe") val nouveauMotDePasse: String,
 )

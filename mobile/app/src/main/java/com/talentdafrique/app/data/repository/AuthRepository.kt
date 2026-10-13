@@ -1,5 +1,7 @@
 package com.talentdafrique.app.data.repository
 
+import com.talentdafrique.app.data.remote.toUserMessage
+
 import com.talentdafrique.app.data.local.TokenManager
 import com.talentdafrique.app.data.remote.api.AuthApi
 import com.talentdafrique.app.data.remote.dto.LoginRequest
@@ -31,7 +33,7 @@ class AuthRepository @Inject constructor(
         tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
         Result.Success(Unit)
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Connexion impossible. Vérifie ton email et mot de passe.")
+        Result.Error(e.toUserMessage("Connexion impossible. Vérifie ton email et mot de passe."))
     }
 
     suspend fun register(
@@ -39,18 +41,33 @@ class AuthRepository @Inject constructor(
         email: String,
         motDePasse: String,
         typeProfil: TypeProfil,
+        consentement: Boolean,
     ): Result<Unit> = try {
-        val tokens = authApi.register(RegisterRequest(nom, email, motDePasse, typeProfil))
+        val tokens = authApi.register(RegisterRequest(nom, email, motDePasse, typeProfil, consentement))
         tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
         Result.Success(Unit)
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Inscription impossible.")
+        Result.Error(e.toUserMessage("Inscription impossible."))
     }
 
     suspend fun me(): Result<UserDto> = try {
         Result.Success(authApi.me())
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Impossible de récupérer le profil.")
+        Result.Error(e.toUserMessage("Impossible de récupérer le profil."))
+    }
+
+    suspend fun forgotPassword(email: String): Result<Unit> = try {
+        authApi.forgotPassword(com.talentdafrique.app.data.remote.dto.ForgotPasswordRequest(email))
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Impossible d'envoyer le code."))
+    }
+
+    suspend fun resetPassword(email: String, code: String, nouveau: String): Result<Unit> = try {
+        authApi.resetPassword(com.talentdafrique.app.data.remote.dto.ResetPasswordRequest(email, code, nouveau))
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Impossible de réinitialiser le mot de passe."))
     }
 
     suspend fun logout() {

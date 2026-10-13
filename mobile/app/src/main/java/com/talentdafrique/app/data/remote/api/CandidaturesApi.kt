@@ -1,5 +1,7 @@
 package com.talentdafrique.app.data.remote.api
 
+import retrofit2.http.DELETE
+
 import com.talentdafrique.app.data.remote.dto.CandidatureCreateRequest
 import com.talentdafrique.app.data.remote.dto.CandidatureDto
 import com.talentdafrique.app.data.remote.dto.StatutUpdateRequest
@@ -28,6 +30,9 @@ interface CandidaturesApi {
         @Query("disponibilite") disponibilite: String? = null,
         @Query("statut") statut: String? = null,
     ): List<CandidatureDto>
+
+    @DELETE("candidatures/{id}")
+    suspend fun retirer(@Path("id") id: String)
 
     @PATCH("candidatures/{id}/statut")
     suspend fun changerStatut(@Path("id") id: String, @Body body: StatutUpdateRequest): CandidatureDto

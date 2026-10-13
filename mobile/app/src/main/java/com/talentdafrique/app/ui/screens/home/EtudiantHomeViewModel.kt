@@ -34,7 +34,11 @@ class EtudiantHomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             when (val result = offresRepository.getOffresRecommandees()) {
-                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offres = result.data)
+                is Result.Success -> _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    // Le backend renvoie toutes les offres actives triees par score : on garde celles au-dessus du seuil.
+                    offres = result.data.filter { it.recommandee == true },
+                )
                 is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
             }
         }

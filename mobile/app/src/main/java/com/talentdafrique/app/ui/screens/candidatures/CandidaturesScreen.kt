@@ -1,5 +1,7 @@
 package com.talentdafrique.app.ui.screens.candidatures
 
+import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,9 +54,11 @@ private fun iconeStatut(statut: StatutCandidature): ImageVector = when (statut) 
 
 @Composable
 fun CandidaturesScreen(
+    onCandidatureClick: (String) -> Unit = {},
     viewModel: CandidaturesViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadCandidatures() }
 
     when {
         uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
@@ -80,7 +84,7 @@ fun CandidaturesScreen(
                 val style = statutCandidatureStyle(candidature.statut)
 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().clickable { onCandidatureClick(candidature.id) },
                     shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),

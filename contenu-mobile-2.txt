@@ -1,0 +1,1120 @@
+﻿
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreDetailScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+
+import androidx.compose.foundation.background
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.remote.dto.TypeContrat
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.theme.Forest20
+import com.talentdafrique.app.ui.theme.Forest40
+import com.talentdafrique.app.ui.theme.ScoreHigh
+import com.talentdafrique.app.ui.theme.ScoreLow
+import com.talentdafrique.app.ui.theme.ScoreMedium
+
+private fun libelleContrat(type: TypeContrat): String = when (type) {
+    TypeContrat.STAGE -> "Stage"
+    TypeContrat.CDD -> "CDD"
+    TypeContrat.CDI -> "CDI"
+    TypeContrat.MISSION -> "Mission"
+}
+
+private fun couleurScore(score: Double): Color = when {
+    score >= 0.7 -> ScoreHigh
+    score >= 0.4 -> ScoreMedium
+    else -> ScoreLow
+}
+
+@Composable
+fun OffreDetailScreen(
+    onCandidatureEnvoyee: () -> Unit = {},
+    viewModel: OffreDetailViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.candidatureEnvoyee) {
+        if (uiState.candidatureEnvoyee) onCandidatureEnvoyee()
+    }
+
+    when {
+        uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadOffre,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        uiState.offre != null -> {
+            val offre = uiState.offre!!
+
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    // Bandeau titre — cohérent avec l'identité visuelle de l'app
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+                            .background(Brush.linearGradient(colors = listOf(Forest40, Forest20)))
+                            .padding(horizontal = 24.dp, vertical = 28.dp),
+                    ) {
+                        Column {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Surface(
+                                    color = Color.White.copy(alpha = 0.18f),
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                ) {
+                                    Text(
+                                        text = libelleContrat(offre.typeContrat),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    )
+                                }
+
+                                offre.scoreGlobal?.let { score ->
+                                    Surface(
+                                        color = Color.White.copy(alpha = 0.18f),
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Star,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.height(14.dp),
+                                            )
+                                            Text(
+                                                text = "${(score * 100).toInt()}% match",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(start = 4.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = offre.titre,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 16.dp),
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 12.dp),
+                            ) {
+                                offre.localisation?.let {
+                                    Icon(
+                                        imageVector = Icons.Outlined.LocationOn,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.85f),
+                                        modifier = Modifier.height(16.dp),
+                                    )
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        modifier = Modifier.padding(start = 4.dp),
+                                    )
+                                }
+
+                                offre.remuneration?.let {
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Icon(
+                                        imageVector = Icons.Outlined.Payments,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.85f),
+                                        modifier = Modifier.height(16.dp),
+                                    )
+                                    Text(
+                                        text = "$it €",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        modifier = Modifier.padding(start = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp)) {
+                        SectionTitle("Description")
+                        Text(
+                            text = offre.description ?: "Aucune description fournie.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+
+                        offre.competencesObligatoires?.let {
+                            SectionTitle("Compétences requises", topPadding = 24.dp)
+                            Text(text = it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+
+                        offre.competencesSouhaitees?.let {
+                            SectionTitle("Compétences souhaitées", topPadding = 20.dp)
+                            Text(text = it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+
+                        offre.softSkills?.let {
+                            SectionTitle("Soft skills", topPadding = 20.dp)
+                            Text(text = it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+
+                        // Marge basse pour ne pas être masqué par le bouton fixe
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
+                }
+
+                // Barre d'action fixe — toujours accessible sans avoir à scroller
+                Surface(
+                    tonalElevation = 4.dp,
+                    shadowElevation = 8.dp,
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+                        uiState.postulerError?.let { message ->
+                            Text(
+                                text = message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                        }
+
+                        Button(
+                            onClick = { viewModel.postuler() },
+                            enabled = !uiState.isPostulating && !uiState.candidatureEnvoyee,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                        ) {
+                            when {
+                                uiState.isPostulating -> CircularProgressIndicator(
+                                    modifier = Modifier.height(22.dp),
+                                    strokeWidth = 2.5.dp,
+                                )
+                                uiState.candidatureEnvoyee -> Text("Candidature envoyée ✓", style = MaterialTheme.typography.titleSmall)
+                                else -> Text("Postuler", style = MaterialTheme.typography.titleSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String, topPadding: androidx.compose.ui.unit.Dp = 0.dp) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = topPadding),
+    )
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreDetailViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.CandidaturesRepository
+import com.talentdafrique.app.data.repository.OffresRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class OffreDetailUiState(
+    val isLoading: Boolean = true,
+    val offre: OffreDto? = null,
+    val errorMessage: String? = null,
+    val isPostulating: Boolean = false,
+    val candidatureEnvoyee: Boolean = false,
+    val postulerError: String? = null,
+)
+
+@HiltViewModel
+class OffreDetailViewModel @Inject constructor(
+    private val offresRepository: OffresRepository,
+    private val candidaturesRepository: CandidaturesRepository,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private val offreId: String = checkNotNull(savedStateHandle["offreId"])
+
+    private val _uiState = MutableStateFlow(OffreDetailUiState())
+    val uiState: StateFlow<OffreDetailUiState> = _uiState.asStateFlow()
+
+    init {
+        loadOffre()
+    }
+
+    fun loadOffre() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = offresRepository.getOffre(offreId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offre = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    fun postuler(message: String? = null) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isPostulating = true, postulerError = null)
+            when (val result = candidaturesRepository.postuler(offreId, message)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isPostulating = false, candidatureEnvoyee = true)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isPostulating = false, postulerError = result.message)
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\home\EtudiantHomeContent.kt =====
+
+package com.talentdafrique.app.ui.screens.home
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WavingHand
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.screens.offres.OffreCard
+import com.talentdafrique.app.ui.theme.Forest20
+import com.talentdafrique.app.ui.theme.Forest40
+import com.talentdafrique.app.ui.theme.HeroShape
+import java.util.Calendar
+
+private fun greeting(): String {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    return when {
+        hour < 5 -> "Bonne nuit"
+        hour < 12 -> "Bonjour"
+        hour < 18 -> "Bon après-midi"
+        else -> "Bonsoir"
+    }
+}
+
+@Composable
+fun EtudiantHomeContent(
+    onOffreClick: (String) -> Unit,
+    onSeeAllClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: EtudiantHomeViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadOffresRecommandees,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        else -> LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp),
+        ) {
+            item { HomeHero(offresCount = uiState.offres.size) }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 20.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text(text = "Recommandées pour toi", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            text = "Classées par pertinence",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = onSeeAllClick) { Text("Tout voir") }
+                }
+            }
+
+            if (uiState.offres.isEmpty()) {
+                item {
+                    EmptyView(
+                        title = "Pas encore de recommandations",
+                        subtitle = "Complète ton profil et ton CV pour recevoir des offres adaptées.",
+                        icon = Icons.Outlined.SearchOff,
+                        modifier = Modifier.size(height = 320.dp, width = 0.dp).fillMaxWidth(),
+                    )
+                }
+            } else {
+                items(uiState.offres, key = { it.id }) { offre ->
+                    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                        OffreCard(offre = offre, onClick = { onOffreClick(offre.id) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeHero(offresCount: Int) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(HeroShape)
+            .background(Brush.linearGradient(colors = listOf(Forest40, Forest20))),
+    ) {
+        // Motif décoratif discret : deux cercles en fond, évoquant un soleil/motif graphique
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 40.dp, y = (-60).dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f)),
+        )
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .align(Alignment.CenterEnd)
+                .offset(x = 12.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.05f)),
+        )
+
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 32.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.WavingHand,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+                Text(
+                    text = "${greeting()} !",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+
+            Text(
+                text = "Voici les offres qui te correspondent le mieux",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.88f),
+                modifier = Modifier.padding(top = 6.dp, bottom = 20.dp),
+            )
+
+            if (offresCount > 0) {
+                Surface(
+                    color = Color.White.copy(alpha = 0.16f),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Star,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = "$offresCount offre${if (offresCount > 1) "s" else ""} sélectionnée${if (offresCount > 1) "s" else ""} pour toi",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\screens\profile\ProfileViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.profile
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.data.remote.dto.UserDto
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.data.repository.CvRepository
+import com.talentdafrique.app.data.repository.ProfilesRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.io.File
+import javax.inject.Inject
+
+/** Doit rester synchronisé avec DisponibiliteCandidat côté backend (app/schemas/profiles.py). */
+enum class DisponibiliteOption(val value: String, val label: String) {
+    IMMEDIATE("immediate", "Immédiate"),
+    UN_MOIS("1_mois", "Sous 1 mois"),
+    TROIS_MOIS("3_mois", "Sous 3 mois"),
+    SIX_MOIS("6_mois", "Sous 6 mois"),
+}
+
+data class ProfileUiState(
+    val isLoading: Boolean = true,
+    val user: UserDto? = null,
+    val profile: ProfileDto? = null,
+    val errorMessage: String? = null,
+    val isUploadingCv: Boolean = false,
+    val cvUploadError: String? = null,
+    // Édition du profil
+    val isEditing: Boolean = false,
+    val editCompetences: String = "",
+    val editDisponibilite: DisponibiliteOption? = null,
+    val isSaving: Boolean = false,
+    val saveError: String? = null,
+)
+
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+    private val profilesRepository: ProfilesRepository,
+    private val cvRepository: CvRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        loadProfile()
+    }
+
+    fun loadProfile() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            when (val userResult = authRepository.me()) {
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = userResult.message)
+                    return@launch
+                }
+                is Result.Success -> {
+                    val user = userResult.data
+                    when (val profileResult = profilesRepository.getMyProfile(user.typeProfil)) {
+                        is Result.Success -> {
+                            val etudiant = profileResult.data as? ProfileDto.Etudiant
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                user = user,
+                                profile = profileResult.data,
+                                editCompetences = etudiant?.competences ?: "",
+                                editDisponibilite = DisponibiliteOption.entries.find { it.value == etudiant?.disponibilite },
+                            )
+                        }
+                        is Result.Error -> _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            user = user,
+                            errorMessage = profileResult.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
+        }
+    }
+
+    fun uploadCv(file: File) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUploadingCv = true, cvUploadError = null)
+            when (val result = cvRepository.uploadCv(file)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isUploadingCv = false)
+                    loadProfile()
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(isUploadingCv = false, cvUploadError = result.message)
+            }
+        }
+    }
+
+    fun startEditing() {
+        val etudiant = _uiState.value.profile as? ProfileDto.Etudiant
+        _uiState.value = _uiState.value.copy(
+            isEditing = true,
+            editCompetences = etudiant?.competences ?: "",
+            editDisponibilite = DisponibiliteOption.entries.find { it.value == etudiant?.disponibilite },
+            saveError = null,
+        )
+    }
+
+    fun cancelEditing() {
+        _uiState.value = _uiState.value.copy(isEditing = false, saveError = null)
+    }
+
+    fun onEditCompetencesChange(value: String) {
+        _uiState.value = _uiState.value.copy(editCompetences = value)
+    }
+
+    fun onEditDisponibiliteSelected(option: DisponibiliteOption) {
+        // Re-tap sur l'option déjà sélectionnée = désélectionner (revenir à "non renseigné")
+        val newValue = if (_uiState.value.editDisponibilite == option) null else option
+        _uiState.value = _uiState.value.copy(editDisponibilite = newValue)
+    }
+
+    fun saveProfile() {
+        val state = _uiState.value
+        viewModelScope.launch {
+            _uiState.value = state.copy(isSaving = true, saveError = null)
+            val fields = mapOf(
+                "competences" to state.editCompetences.ifBlank { null },
+                "disponibilite" to state.editDisponibilite?.value,
+            )
+            when (val result = profilesRepository.updateMyProfile(fields)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isSaving = false, isEditing = false)
+                    loadProfile()
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(isSaving = false, saveError = result.message)
+            }
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\ui\components\StateViews.kt =====
+
+package com.talentdafrique.app.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun LoadingView(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(strokeWidth = 3.dp)
+    }
+}
+
+@Composable
+fun ErrorView(
+    message: String,
+    onRetry: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.height(48.dp),
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp, bottom = 20.dp),
+            )
+            Button(onClick = onRetry) { Text("Réessayer") }
+        }
+    }
+}
+
+@Composable
+fun EmptyView(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.height(56.dp),
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\UsersApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.UserDto
+import okhttp3.ResponseBody
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+
+/** Miroir de app/routers/users.py — droits RGPD (rectification, export, oubli). */
+interface UsersApi {
+
+    @PATCH("users/me")
+    suspend fun updateMe(@Body body: Map<String, @JvmSuppressWildcards Any?>): UserDto
+
+    @GET("users/me/export")
+    suspend fun exportMyData(): ResponseBody
+
+    @DELETE("users/me")
+    suspend fun deleteMyAccount()
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\remote\dto\AuthDto.kt =====
+
+package com.talentdafrique.app.data.remote.dto
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+/**
+ * Ces DTO reflètent app/schemas/user.py côté backend.
+ * Adapte les noms de champs exacts en regardant /docs (Swagger) de ton API si besoin —
+ * je pars des conventions habituelles FastAPI/Pydantic en snake_case.
+ */
+
+enum class TypeProfil {
+    @Json(name = "etudiant") ETUDIANT,
+    @Json(name = "entreprise") ENTREPRISE,
+    @Json(name = "ecole") ECOLE,
+    @Json(name = "freelance") FREELANCE,
+}
+
+@JsonClass(generateAdapter = true)
+data class RegisterRequest(
+    val nom: String,
+    val email: String,
+    @Json(name = "mot_de_passe") val motDePasse: String,
+    @Json(name = "type_profil") val typeProfil: TypeProfil,
+)
+
+@JsonClass(generateAdapter = true)
+data class LoginRequest(
+    val email: String,
+    @Json(name = "mot_de_passe") val motDePasse: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class RefreshRequest(
+    @Json(name = "refresh_token") val refreshToken: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class TokenResponse(
+    @Json(name = "access_token") val accessToken: String,
+    @Json(name = "refresh_token") val refreshToken: String,
+    @Json(name = "token_type") val tokenType: String = "bearer",
+)
+
+@JsonClass(generateAdapter = true)
+data class UserDto(
+    val id: String,
+    val nom: String,
+    val email: String,
+    @Json(name = "type_profil") val typeProfil: TypeProfil,
+    @Json(name = "is_admin") val isAdmin: Boolean = false,
+)
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\repository\AuthRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.local.TokenManager
+import com.talentdafrique.app.data.remote.api.AuthApi
+import com.talentdafrique.app.data.remote.dto.LoginRequest
+import com.talentdafrique.app.data.remote.dto.RegisterRequest
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.data.remote.dto.UserDto
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Résultat générique pour distinguer succès / erreur réseau dans l'UI,
+ * sans exposer d'exception brute jusqu'aux Composables.
+ */
+sealed interface Result<out T> {
+    data class Success<T>(val data: T) : Result<T>
+    data class Error(val message: String) : Result<Nothing>
+}
+
+@Singleton
+class AuthRepository @Inject constructor(
+    private val authApi: AuthApi,
+    private val tokenManager: TokenManager,
+) {
+    val isLoggedIn: Flow<Boolean> = tokenManager.isLoggedInFlow
+
+    suspend fun login(email: String, motDePasse: String): Result<Unit> = try {
+        val tokens = authApi.login(LoginRequest(email, motDePasse))
+        tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Connexion impossible. Vérifie ton email et mot de passe.")
+    }
+
+    suspend fun register(
+        nom: String,
+        email: String,
+        motDePasse: String,
+        typeProfil: TypeProfil,
+    ): Result<Unit> = try {
+        val tokens = authApi.register(RegisterRequest(nom, email, motDePasse, typeProfil))
+        tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Inscription impossible.")
+    }
+
+    suspend fun me(): Result<UserDto> = try {
+        Result.Success(authApi.me())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer le profil.")
+    }
+
+    suspend fun logout() {
+        // Le backend ne peut pas invalider le refresh token avant son expiration
+        // naturelle (limite connue, section 3 du récap backend) — on se contente
+        // donc d'effacer les tokens localement.
+        tokenManager.clear()
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\data\repository\OffresRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.OffresApi
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class OffresRepository @Inject constructor(
+    private val offresApi: OffresApi,
+) {
+    suspend fun getOffresRecommandees(): Result<List<OffreDto>> = try {
+        Result.Success(offresApi.getOffresRecommandees())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer les offres recommandées.")
+    }
+
+    suspend fun listOffres(statut: String? = null, typeContrat: String? = null): Result<List<OffreDto>> = try {
+        Result.Success(offresApi.listOffres(statut, typeContrat))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer les offres.")
+    }
+
+    suspend fun getOffre(id: String): Result<OffreDto> = try {
+        Result.Success(offresApi.getOffre(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de récupérer cette offre.")
+    }
+}
+
+===== mobile\app\src\main\java\com\talentdafrique\app\TalentDAfriqueApp.kt =====
+
+package com.talentdafrique.app
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class TalentDAfriqueApp : Application()
+
+===== mobile\app\src\main\java\com\talentdafrique\app\MainActivity.kt =====
+
+package com.talentdafrique.app
+
+import com.talentdafrique.app.ui.theme.TalentDAfriqueTheme
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.ui.navigation.Routes
+import com.talentdafrique.app.ui.navigation.TalentDAfriqueNavGraph
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewModelScope
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            TalentDAfriqueTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    TalentDAfriqueRoot()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * État initial : le temps de lire le DataStore (isLoggedIn), on affiche un
+ * simple spinner. Une fois résolu, on lance le NavGraph avec le bon point
+ * de départ. Le mobile étant réservé aux étudiants, plus besoin de récupérer
+ * le type de profil — un seul HomeScreen possible.
+ */
+@Composable
+fun TalentDAfriqueRoot(viewModel: SessionViewModel = viewModel()) {
+    val state by viewModel.state.collectAsState()
+
+    when (val current = state) {
+        is SessionState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        is SessionState.Resolved -> {
+            TalentDAfriqueNavGraph(
+                startDestination = if (current.isLoggedIn) Routes.HOME else Routes.LOGIN,
+            )
+        }
+    }
+}
+
+sealed interface SessionState {
+    data object Loading : SessionState
+    data class Resolved(val isLoggedIn: Boolean) : SessionState
+}
+
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<SessionState>(SessionState.Loading)
+    val state: StateFlow<SessionState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            authRepository.isLoggedIn.collect { loggedIn ->
+                _state.value = SessionState.Resolved(isLoggedIn = loggedIn)
+            }
+        }
+    }
+}
+
+===== backend\app\schemas\matching.py =====
+
+from app.schemas.candidature import CandidatureOut
+from app.schemas.offre import OffreOut
+
+
+class OffreAvecScore(OffreOut):
+    score_global: float
+    recommandee: bool
+    detail_score: dict
+
+
+class CandidatureAvecScore(CandidatureOut):
+    score_global: float
+    recommandee: bool
+    detail_score: dict
+
+===== backend\app\routers\users.py =====
+
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
+from app.schemas.user import UserOut, UserUpdate
+
+router = APIRouter()
+
+
+@router.patch("/me", response_model=UserOut)
+def update_current_user(
+    payload: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if payload.nom is not None:
+        current_user.nom = payload.nom
+    if payload.email is not None:
+        current_user.email = payload.email
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_current_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Suppression logique (soft delete) - decision RGPD section 6.1 du recap.
+    # Purge definitive a implementer via une tache planifiee, 30 jours plus tard.
+    current_user.deleted_at = datetime.utcnow()
+    current_user.is_active = False
+    db.commit()
+
+
+@router.get("/me/export")
+def export_current_user_data(current_user: User = Depends(get_current_user)):
+    # Export RGPD basique - a enrichir au fur et a mesure que d'autres
+    # tables (offres, candidatures...) seront liees a l'utilisateur.
+    return {
+        "id": str(current_user.id),
+        "nom": current_user.nom,
+        "email": current_user.email,
+        "type_profil": current_user.type_profil,
+        "consent_given_at": current_user.consent_given_at.isoformat(),
+        "consent_version": current_user.consent_version,
+        "created_at": current_user.created_at.isoformat(),
+    }

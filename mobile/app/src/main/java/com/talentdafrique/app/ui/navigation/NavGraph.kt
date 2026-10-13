@@ -1,5 +1,7 @@
 package com.talentdafrique.app.ui.navigation
 
+import com.talentdafrique.app.ui.screens.compte.CompteScreen
+
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,6 +43,20 @@ object Routes {
     const val CANDIDATURES = "candidatures"
     const val NOTIFICATIONS = "notifications"
     const val PROFILE = "profile"
+    const val FORGOT_PASSWORD = "forgot_password"
+
+    const val FAVORIS = "favoris"
+    const val ENTRETIENS = "entretiens"
+    const val MESSAGES = "messages"
+    const val CONVERSATION = "messages/{candidatureId}"
+    const val CANDIDATURE_DETAIL = "candidature/{candidatureId}"
+    const val CERTIFICATIONS = "certifications"
+    const val PORTFOLIO = "portfolio"
+    const val ECOLE = "ecole"
+
+    fun conversation(candidatureId: String) = "messages/$candidatureId"
+    fun candidatureDetail(candidatureId: String) = "candidature/$candidatureId"
+    const val COMPTE = "compte"
 
     fun offreDetail(offreId: String) = "offre/$offreId"
 }
@@ -106,7 +122,14 @@ fun TalentDAfriqueNavGraph(
                         }
                     },
                     onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                    onNavigateToForgot = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 )
+            }
+
+            composable(Routes.FORGOT_PASSWORD) {
+                SubScreen("Mot de passe oublié", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.auth.ForgotPasswordScreen(onDone = { navController.popBackStack() })
+                }
             }
 
             composable(Routes.REGISTER) {
@@ -172,7 +195,7 @@ fun TalentDAfriqueNavGraph(
             composable(Routes.CANDIDATURES) {
                 Scaffold(topBar = { TopAppBar(title = { Text("Mes candidatures") }) }) { padding ->
                     Box(Modifier.padding(padding)) {
-                        CandidaturesScreen()
+                        CandidaturesScreen(onCandidatureClick = { navController.navigate(Routes.candidatureDetail(it)) })
                     }
                 }
             }
@@ -185,10 +208,85 @@ fun TalentDAfriqueNavGraph(
                 }
             }
 
+            composable(Routes.COMPTE) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("Mon compte") },
+                            navigationIcon = {
+                                IconButton(onClick = { navController.popBackStack() }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                                }
+                            },
+                        )
+                    },
+                ) { padding ->
+                    Box(Modifier.padding(padding)) { CompteScreen() }
+                }
+            }
+
+            composable(Routes.FAVORIS) {
+                SubScreen("Mes favoris", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.favoris.FavorisScreen(
+                        onOffreClick = { navController.navigate(Routes.offreDetail(it)) },
+                    )
+                }
+            }
+
+            composable(Routes.ENTRETIENS) {
+                SubScreen("Mes entretiens", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.entretiens.EntretiensScreen(
+                        onCandidatureClick = { navController.navigate(Routes.candidatureDetail(it)) },
+                    )
+                }
+            }
+
+            composable(Routes.MESSAGES) {
+                SubScreen("Messages", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.messages.ConversationsScreen(
+                        onOpen = { navController.navigate(Routes.conversation(it)) },
+                    )
+                }
+            }
+
+            composable(Routes.CONVERSATION) {
+                SubScreen("Conversation", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.messages.ConversationScreen()
+                }
+            }
+
+            composable(Routes.CANDIDATURE_DETAIL) {
+                SubScreen("Ma candidature", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.candidatures.CandidatureDetailScreen(
+                        onOpenMessages = { navController.navigate(Routes.conversation(it)) },
+                        onOpenOffre = { navController.navigate(Routes.offreDetail(it)) },
+                        onRetiree = { navController.popBackStack() },
+                    )
+                }
+            }
+
+            composable(Routes.CERTIFICATIONS) {
+                SubScreen("Mes certifications", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.certifications.CertificationsScreen()
+                }
+            }
+
+            composable(Routes.PORTFOLIO) {
+                SubScreen("Mon portfolio", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.portfolio.PortfolioScreen()
+                }
+            }
+
+            composable(Routes.ECOLE) {
+                SubScreen("Mon école", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.ecole.EcoleScreen()
+                }
+            }
+
             composable(Routes.PROFILE) {
                 Scaffold(topBar = { TopAppBar(title = { Text("Mon profil") }) }) { padding ->
                     Box(Modifier.padding(padding)) {
-                        ProfileScreen()
+                        ProfileScreen(onNavigate = { navController.navigate(it) }, onOpenCompte = { navController.navigate(Routes.COMPTE) })
                     }
                 }
             }

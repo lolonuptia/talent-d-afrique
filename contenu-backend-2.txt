@@ -1,0 +1,1328 @@
+﻿
+===== app\routers\offres.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
+from app.models.user import User
+from app.schemas.matching import OffreAvecScore
+from app.schemas.offre import OffreCreate, OffreOut, OffreUpdate
+from app.services.matching import calculer_score_matching
+
+router = APIRouter()
+
+
+def _get_entreprise_profile_or_403(current_user: User, db: Session) -> EntrepriseProfile:
+    if current_user.type_profil != "entreprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une entreprise peut geren des offres.",
+        )
+
+    profile = (
+        db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == current_user.id).first()
+    )
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Veuillez d'abord completer votre profil entreprise.",
+        )
+    return profile
+
+
+def _get_owned_offre_or_404(offre_id: uuid.UUID, entreprise_id: uuid.UUID, db: Session) -> Offre:
+    offre = db.query(Offre).filter(Offre.id == offre_id).first()
+
+    if offre is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+    if offre.entreprise_id != entreprise_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette offre ne vous appartient pas.",
+        )
+    return offre
+
+
+@router.post("", response_model=OffreOut, status_code=status.HTTP_201_CREATED)
+def create_offre(
+    payload: OffreCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+
+    offre = Offre(
+        id=uuid.uuid4(),
+        entreprise_id=entreprise_profile.id,
+        **payload.model_dump(),
+    )
+    db.add(offre)
+    db.commit()
+    db.refresh(offre)
+    return offre
+
+
+@router.get("", response_model=list[OffreOut])
+def list_offres(
+    statut: str | None = None,
+    type_contrat: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Liste publique des offres (pour les candidats) - filtrable par statut et type de contrat."""
+    query = db.query(Offre)
+    if statut:
+        query = query.filter(Offre.statut == statut)
+    else:
+        query = query.filter(Offre.statut == "active")
+    if type_contrat:
+        query = query.filter(Offre.type_contrat == type_contrat)
+    return query.order_by(Offre.created_at.desc()).all()
+
+
+@router.get("/mine", response_model=list[OffreOut])
+def list_my_offres(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Historique des offres de l'entreprise connectee (actives, expirees, archivees)."""
+    entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    return (
+        db.query(Offre)
+        .filter(Offre.entreprise_id == entreprise_profile.id)
+        .order_by(Offre.created_at.desc())
+        .all()
+    )
+
+
+@router.get("/recommandees", response_model=list[OffreAvecScore])
+def list_offres_recommandees(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Offres actives triees par score de compatibilite decroissant (cf. section 2.3)."""
+    candidat_tjm = None
+
+    if current_user.type_profil == "etudiant":
+        profile = (
+            db.query(EtudiantProfile).filter(EtudiantProfile.user_id == current_user.id).first()
+        )
+        candidat_competences = profile.competences if profile else None
+        candidat_disponibilite = profile.disponibilite if profile else None
+        candidat_annees_experience = None
+    elif current_user.type_profil == "freelance":
+        profile = (
+            db.query(FreelanceProfile).filter(FreelanceProfile.user_id == current_user.id).first()
+        )
+        candidat_competences = profile.competences if profile else None
+        candidat_disponibilite = profile.disponibilite if profile else None
+        candidat_annees_experience = profile.annees_experience if profile else None
+        candidat_tjm = profile.tjm if profile else None
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seuls les etudiants et freelances ont acces a des recommandations.",
+        )
+
+    offres_actives = db.query(Offre).filter(Offre.statut == "active").all()
+
+    resultats = []
+    for offre in offres_actives:
+        matching = calculer_score_matching(
+            candidat_competences=candidat_competences,
+            candidat_disponibilite=candidat_disponibilite,
+            candidat_annees_experience=candidat_annees_experience,
+            candidat_tjm=candidat_tjm,
+            offre_competences_obligatoires=offre.competences_obligatoires,
+            offre_competences_souhaitees=offre.competences_souhaitees,
+            offre_soft_skills=offre.soft_skills,
+            offre_disponibilite=offre.disponibilite,
+            offre_niveau_experience=offre.niveau_experience,
+            offre_type_contrat=offre.type_contrat,
+            offre_budget_tjm=offre.budget_tjm,
+        )
+        resultats.append(
+            OffreAvecScore(
+                **OffreOut.model_validate(offre).model_dump(),
+                score_global=matching["score_global"],
+                recommandee=matching["recommandee"],
+                detail_score=matching["detail"],
+            )
+        )
+
+    resultats.sort(key=lambda o: o.score_global, reverse=True)
+    return resultats
+
+
+@router.get("/{offre_id}", response_model=OffreOut)
+def get_offre(offre_id: uuid.UUID, db: Session = Depends(get_db)):
+    offre = db.query(Offre).filter(Offre.id == offre_id).first()
+    if offre is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+    return offre
+
+
+@router.patch("/{offre_id}", response_model=OffreOut)
+def update_offre(
+    offre_id: uuid.UUID,
+    payload: OffreUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    offre = _get_owned_offre_or_404(offre_id, entreprise_profile.id, db)
+
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(offre, key, value)
+
+    db.commit()
+    db.refresh(offre)
+    return offre
+
+
+@router.delete("/{offre_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_offre(
+    offre_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    offre = _get_owned_offre_or_404(offre_id, entreprise_profile.id, db)
+
+    db.delete(offre)
+    db.commit()
+
+===== app\routers\candidatures.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.candidature import Candidature
+from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
+from app.models.user import User
+from app.schemas.candidature import CandidatureCreate, CandidatureOut, CandidatureStatutUpdate
+from app.schemas.matching import CandidatureAvecScore
+from app.services.matching import calculer_score_matching
+from app.services.notifications import notifier_changement_statut, notifier_nouvelle_candidature
+
+router = APIRouter()
+
+
+def _get_offre_owned_by_current_entreprise(
+    offre_id: uuid.UUID, current_user: User, db: Session
+) -> Offre:
+    if current_user.type_profil != "entreprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une entreprise peut effectuer cette action.",
+        )
+
+    entreprise_profile = (
+        db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == current_user.id).first()
+    )
+    if entreprise_profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Veuillez d'abord completer votre profil entreprise.",
+        )
+
+    offre = db.query(Offre).filter(Offre.id == offre_id).first()
+    if offre is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+    if offre.entreprise_id != entreprise_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette offre ne vous appartient pas.",
+        )
+    return offre
+
+
+@router.post("", response_model=CandidatureOut, status_code=status.HTTP_201_CREATED)
+def create_candidature(
+    payload: CandidatureCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seuls les etudiants et freelances peuvent postuler a une offre.",
+        )
+
+    offre = db.query(Offre).filter(Offre.id == payload.offre_id).first()
+    if offre is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+    if offre.statut != "active":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette offre n'accepte plus de candidatures.",
+        )
+
+    candidature = Candidature(
+        id=uuid.uuid4(),
+        offre_id=payload.offre_id,
+        candidat_id=current_user.id,
+        message=payload.message,
+    )
+    db.add(candidature)
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vous avez deja postule a cette offre.",
+        ) from exc
+
+    db.refresh(candidature)
+
+    notifier_nouvelle_candidature(db, offre.entreprise.user, offre.titre)
+
+    return candidature
+
+
+@router.get("/mine", response_model=list[CandidatureOut])
+def list_my_candidatures(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Suivi des candidatures envoyees, cote candidat."""
+    return (
+        db.query(Candidature)
+        .filter(Candidature.candidat_id == current_user.id)
+        .order_by(Candidature.created_at.desc())
+        .all()
+    )
+
+
+@router.get("/offre/{offre_id}", response_model=list[CandidatureOut])
+def list_candidatures_for_offre(
+    offre_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dashboard entreprise : candidatures recues pour une offre precise."""
+    _get_offre_owned_by_current_entreprise(offre_id, current_user, db)
+
+    return (
+        db.query(Candidature)
+        .filter(Candidature.offre_id == offre_id)
+        .order_by(Candidature.created_at.desc())
+        .all()
+    )
+
+
+@router.get("/offre/{offre_id}/classees", response_model=list[CandidatureAvecScore])
+def list_candidatures_classees(
+    offre_id: uuid.UUID,
+    score_min: float | None = None,
+    disponibilite: str | None = None,
+    statut: str | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dashboard entreprise : candidats tries par score de compatibilite (cf. section 2.2).
+
+    Filtres optionnels :
+    - score_min : n'affiche que les candidatures dont le score global est >= a cette valeur
+    - disponibilite : filtre exact sur la disponibilite declaree par le candidat
+    - statut : filtre exact sur le statut (recue, en_cours, entretien, refusee, acceptee)
+    """
+    offre = _get_offre_owned_by_current_entreprise(offre_id, current_user, db)
+
+    query = db.query(Candidature).filter(Candidature.offre_id == offre_id)
+    if statut:
+        query = query.filter(Candidature.statut == statut)
+    candidatures = query.all()
+
+    resultats = []
+    for candidature in candidatures:
+        candidat = candidature.candidat
+        candidat_tjm = None
+
+        if candidat.type_profil == "etudiant":
+            profile = (
+                db.query(EtudiantProfile).filter(EtudiantProfile.user_id == candidat.id).first()
+            )
+            competences = profile.competences if profile else None
+            candidat_disponibilite = profile.disponibilite if profile else None
+            annees_experience = None
+        else:
+            profile = (
+                db.query(FreelanceProfile).filter(FreelanceProfile.user_id == candidat.id).first()
+            )
+            competences = profile.competences if profile else None
+            candidat_disponibilite = profile.disponibilite if profile else None
+            annees_experience = profile.annees_experience if profile else None
+            candidat_tjm = profile.tjm if profile else None
+
+        if disponibilite and (
+            not candidat_disponibilite
+            or candidat_disponibilite.strip().lower() != disponibilite.strip().lower()
+        ):
+            continue
+
+        matching = calculer_score_matching(
+            candidat_competences=competences,
+            candidat_disponibilite=candidat_disponibilite,
+            candidat_annees_experience=annees_experience,
+            candidat_tjm=candidat_tjm,
+            offre_competences_obligatoires=offre.competences_obligatoires,
+            offre_competences_souhaitees=offre.competences_souhaitees,
+            offre_soft_skills=offre.soft_skills,
+            offre_disponibilite=offre.disponibilite,
+            offre_niveau_experience=offre.niveau_experience,
+            offre_type_contrat=offre.type_contrat,
+            offre_budget_tjm=offre.budget_tjm,
+        )
+
+        if score_min is not None and matching["score_global"] < score_min:
+            continue
+
+        resultats.append(
+            CandidatureAvecScore(
+                **CandidatureOut.model_validate(candidature).model_dump(),
+                score_global=matching["score_global"],
+                recommandee=matching["recommandee"],
+                detail_score=matching["detail"],
+            )
+        )
+
+    resultats.sort(key=lambda c: c.score_global, reverse=True)
+    return resultats
+
+
+@router.patch("/{candidature_id}/statut", response_model=CandidatureOut)
+def update_candidature_statut(
+    candidature_id: uuid.UUID,
+    payload: CandidatureStatutUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    candidature = db.query(Candidature).filter(Candidature.id == candidature_id).first()
+    if candidature is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidature introuvable."
+        )
+
+    _get_offre_owned_by_current_entreprise(candidature.offre_id, current_user, db)
+
+    candidature.statut = payload.statut
+    db.commit()
+    db.refresh(candidature)
+
+    notifier_changement_statut(db, candidature.candidat, candidature.offre.titre, payload.statut)
+
+    return candidature
+
+===== app\routers\favoris.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.favori import Favori
+from app.models.offre import Offre
+from app.models.user import User
+from app.schemas.favori import FavoriCreate, FavoriOut
+
+router = APIRouter()
+
+
+def _verifier_talent(current_user: User) -> None:
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seuls les etudiants et freelances peuvent avoir des offres favorites.",
+        )
+
+
+@router.post("", response_model=FavoriOut, status_code=status.HTTP_201_CREATED)
+def add_favori(
+    payload: FavoriCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+
+    offre = db.query(Offre).filter(Offre.id == payload.offre_id).first()
+    if offre is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+
+    favori = Favori(id=uuid.uuid4(), user_id=current_user.id, offre_id=payload.offre_id)
+    db.add(favori)
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette offre est deja dans vos favoris.",
+        ) from exc
+
+    db.refresh(favori)
+    return favori
+
+
+@router.get("", response_model=list[FavoriOut])
+def list_favoris(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mes offres favorites, les plus recentes d'abord."""
+    _verifier_talent(current_user)
+
+    return (
+        db.query(Favori)
+        .filter(Favori.user_id == current_user.id)
+        .order_by(Favori.created_at.desc())
+        .all()
+    )
+
+
+@router.delete("/{offre_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_favori(
+    offre_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+
+    favori = (
+        db.query(Favori)
+        .filter(Favori.user_id == current_user.id, Favori.offre_id == offre_id)
+        .first()
+    )
+    if favori is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Cette offre n'est pas dans vos favoris."
+        )
+
+    db.delete(favori)
+    db.commit()
+
+===== app\routers\entretiens.py =====
+
+import uuid
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.candidature import Candidature
+from app.models.entretien import Entretien
+from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile
+from app.models.user import User
+from app.schemas.entretien import (
+    EntretienCreate,
+    EntretienOut,
+    EntretienUpdate,
+    StatutEntretien,
+)
+from app.services.notifications import creer_notification, envoyer_email_notification
+
+router = APIRouter()
+
+
+def _naive_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is not None:
+        return dt.astimezone(UTC).replace(tzinfo=None)
+    return dt
+
+
+def _verifier_futur(dt: datetime) -> None:
+    if dt <= datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La date de l'entretien doit etre dans le futur.",
+        )
+
+
+def _profil_entreprise(current_user: User, db: Session) -> EntrepriseProfile:
+    if current_user.type_profil != "entreprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une entreprise peut effectuer cette action.",
+        )
+    profil = (
+        db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == current_user.id).first()
+    )
+    if profil is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Veuillez d'abord completer votre profil entreprise.",
+        )
+    return profil
+
+
+def _verifier_propriete(candidature: Candidature, profil: EntrepriseProfile) -> None:
+    if candidature.offre.entreprise_id != profil.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cette candidature ne concerne pas une de vos offres.",
+        )
+
+
+def _notifier(db: Session, candidat: User, titre: str, message: str, evenement: str) -> None:
+    creer_notification(
+        db,
+        user_id=candidat.id,
+        titre=titre,
+        message=message,
+        type_evenement=evenement,
+    )
+    envoyer_email_notification(candidat, titre, f"<p>{message}</p>")
+
+
+def _quand(dt: datetime) -> str:
+    return dt.strftime("%d/%m/%Y a %H:%M (UTC)")
+
+
+@router.post("", response_model=EntretienOut, status_code=status.HTTP_201_CREATED)
+def planifier_entretien(
+    payload: EntretienCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profil = _profil_entreprise(current_user, db)
+
+    candidature = db.query(Candidature).filter(Candidature.id == payload.candidature_id).first()
+    if candidature is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidature introuvable."
+        )
+    _verifier_propriete(candidature, profil)
+
+    if candidature.statut in ("refusee", "acceptee"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette candidature est deja cloturee.",
+        )
+
+    quand = _naive_utc(payload.date_heure)
+    _verifier_futur(quand)
+
+    data = payload.model_dump()
+    data["date_heure"] = quand
+    entretien = Entretien(id=uuid.uuid4(), **data)
+    db.add(entretien)
+    candidature.statut = "entretien"
+    db.commit()
+    db.refresh(entretien)
+
+    _notifier(
+        db,
+        candidature.candidat,
+        "Entretien planifie",
+        f"Un entretien a ete planifie pour l'offre {candidature.offre.titre} "
+        f"le {_quand(quand)}.",
+        "entretien_planifie",
+    )
+    return entretien
+
+
+@router.get("", response_model=list[EntretienOut])
+def list_entretiens(
+    statut: StatutEntretien | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Entreprise : entretiens de ses offres. Talent : ses propres entretiens."""
+    query = db.query(Entretien).join(Candidature, Candidature.id == Entretien.candidature_id)
+
+    if current_user.type_profil == "entreprise":
+        profil = _profil_entreprise(current_user, db)
+        query = query.join(Offre, Offre.id == Candidature.offre_id).filter(
+            Offre.entreprise_id == profil.id
+        )
+    elif current_user.type_profil in ("etudiant", "freelance"):
+        query = query.filter(Candidature.candidat_id == current_user.id)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux entreprises, etudiants et freelances.",
+        )
+
+    if statut:
+        query = query.filter(Entretien.statut == statut)
+    return query.order_by(Entretien.date_heure.asc()).all()
+
+
+@router.patch("/{entretien_id}", response_model=EntretienOut)
+def modifier_entretien(
+    entretien_id: uuid.UUID,
+    payload: EntretienUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profil = _profil_entreprise(current_user, db)
+
+    entretien = db.query(Entretien).filter(Entretien.id == entretien_id).first()
+    if entretien is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entretien introuvable.")
+    candidature = entretien.candidature
+    _verifier_propriete(candidature, profil)
+
+    data = payload.model_dump(exclude_unset=True)
+    # les champs obligatoires ne peuvent pas etre effaces
+    data = {k: v for k, v in data.items() if v is not None or k in ("lieu_ou_lien", "message")}
+
+    date_changee = False
+    if "date_heure" in data:
+        quand = _naive_utc(data["date_heure"])
+        _verifier_futur(quand)
+        date_changee = quand != entretien.date_heure
+        data["date_heure"] = quand
+
+    deja_annule = entretien.statut == "annule"
+    for cle, valeur in data.items():
+        setattr(entretien, cle, valeur)
+    db.commit()
+    db.refresh(entretien)
+
+    titre_offre = candidature.offre.titre
+    if entretien.statut == "annule" and not deja_annule:
+        _notifier(
+            db,
+            candidature.candidat,
+            "Entretien annule",
+            f"L'entretien prevu pour l'offre {titre_offre} a ete annule.",
+            "entretien_annule",
+        )
+    elif date_changee and entretien.statut == "planifie":
+        _notifier(
+            db,
+            candidature.candidat,
+            "Entretien modifie",
+            f"L'entretien pour l'offre {titre_offre} est reporte au "
+            f"{_quand(entretien.date_heure)}.",
+            "entretien_modifie",
+        )
+    return entretien
+
+===== app\routers\messages.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.candidature import Candidature
+from app.models.message import Message
+from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile
+from app.models.user import User
+from app.schemas.message import ConversationOut, MessageCreate, MessageOut
+from app.services.notifications import creer_notification
+
+router = APIRouter()
+
+
+def _profil_entreprise(user: User, db: Session) -> EntrepriseProfile:
+    profil = db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == user.id).first()
+    if profil is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Veuillez d'abord completer votre profil entreprise.",
+        )
+    return profil
+
+
+def _interlocuteur(candidature: Candidature, user: User, db: Session) -> User:
+    """Verifie que user participe a la conversation et renvoie l'autre partie."""
+    if user.type_profil == "entreprise":
+        profil = _profil_entreprise(user, db)
+        if candidature.offre.entreprise_id == profil.id:
+            return candidature.candidat
+    elif user.type_profil in ("etudiant", "freelance"):
+        if candidature.candidat_id == user.id:
+            return candidature.offre.entreprise.user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Vous ne participez pas a cette conversation.",
+    )
+
+
+def _get_candidature(candidature_id: uuid.UUID, db: Session) -> Candidature:
+    candidature = db.query(Candidature).filter(Candidature.id == candidature_id).first()
+    if candidature is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidature introuvable."
+        )
+    return candidature
+
+
+@router.get("", response_model=list[ConversationOut])
+def list_conversations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mes conversations (candidatures avec au moins un message), la plus recente d'abord."""
+    query = db.query(Candidature)
+    if current_user.type_profil == "entreprise":
+        profil = _profil_entreprise(current_user, db)
+        query = query.join(Offre, Offre.id == Candidature.offre_id).filter(
+            Offre.entreprise_id == profil.id
+        )
+    elif current_user.type_profil in ("etudiant", "freelance"):
+        query = query.filter(Candidature.candidat_id == current_user.id)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux entreprises, etudiants et freelances.",
+        )
+
+    conversations: list[ConversationOut] = []
+    for candidature in query.all():
+        dernier = (
+            db.query(Message)
+            .filter(Message.candidature_id == candidature.id)
+            .order_by(Message.created_at.desc())
+            .first()
+        )
+        if dernier is None:
+            continue
+        non_lus = (
+            db.query(func.count(Message.id))
+            .filter(
+                Message.candidature_id == candidature.id,
+                Message.expediteur_id != current_user.id,
+                Message.lue.is_(False),
+            )
+            .scalar()
+        )
+        autre = _interlocuteur(candidature, current_user, db)
+        conversations.append(
+            ConversationOut(
+                candidature_id=candidature.id,
+                offre_titre=candidature.offre.titre,
+                interlocuteur_nom=autre.nom,
+                dernier_message=dernier.contenu,
+                dernier_message_at=dernier.created_at,
+                non_lus=non_lus,
+            )
+        )
+
+    conversations.sort(key=lambda c: c.dernier_message_at, reverse=True)
+    return conversations
+
+
+@router.get("/{candidature_id}", response_model=list[MessageOut])
+def read_conversation(
+    candidature_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Messages d'une conversation (ordre chronologique). Marque comme lus ceux de l'autre."""
+    candidature = _get_candidature(candidature_id, db)
+    _interlocuteur(candidature, current_user, db)
+
+    db.query(Message).filter(
+        Message.candidature_id == candidature_id,
+        Message.expediteur_id != current_user.id,
+        Message.lue.is_(False),
+    ).update({Message.lue: True}, synchronize_session=False)
+    db.commit()
+
+    return (
+        db.query(Message)
+        .filter(Message.candidature_id == candidature_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+
+
+@router.post("/{candidature_id}", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
+def send_message(
+    candidature_id: uuid.UUID,
+    payload: MessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    candidature = _get_candidature(candidature_id, db)
+    destinataire = _interlocuteur(candidature, current_user, db)
+
+    message = Message(
+        id=uuid.uuid4(),
+        candidature_id=candidature_id,
+        expediteur_id=current_user.id,
+        contenu=payload.contenu.strip(),
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    creer_notification(
+        db,
+        user_id=destinataire.id,
+        titre="Nouveau message",
+        message=f"{current_user.nom} vous a ecrit au sujet de l'offre {candidature.offre.titre}.",
+        type_evenement="message_recu",
+    )
+    return message
+
+===== app\routers\certifications.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.certification import Certification
+from app.models.user import User
+from app.schemas.certification import CertificationCreate, CertificationOut
+
+router = APIRouter()
+
+
+def _verifier_talent(current_user: User) -> None:
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux etudiants et freelances.",
+        )
+
+
+@router.post("", response_model=CertificationOut, status_code=status.HTTP_201_CREATED)
+def add_certification(
+    payload: CertificationCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    cert = Certification(id=uuid.uuid4(), user_id=current_user.id, **payload.model_dump())
+    db.add(cert)
+    db.commit()
+    db.refresh(cert)
+    return cert
+
+
+@router.get("", response_model=list[CertificationOut])
+def list_certifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    return (
+        db.query(Certification)
+        .filter(Certification.user_id == current_user.id)
+        .order_by(Certification.date_obtention.desc().nullslast(), Certification.created_at.desc())
+        .all()
+    )
+
+
+@router.delete("/{certification_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_certification(
+    certification_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    cert = (
+        db.query(Certification)
+        .filter(Certification.id == certification_id, Certification.user_id == current_user.id)
+        .first()
+    )
+    if cert is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certification introuvable.",
+        )
+    db.delete(cert)
+    db.commit()
+
+===== app\routers\portfolio.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.portfolio import PortfolioItem
+from app.models.user import User
+from app.schemas.portfolio import PortfolioItemCreate, PortfolioItemOut
+
+router = APIRouter()
+
+
+def _verifier_talent(current_user: User) -> None:
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux etudiants et freelances.",
+        )
+
+
+@router.post("", response_model=PortfolioItemOut, status_code=status.HTTP_201_CREATED)
+def add_item(
+    payload: PortfolioItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    item = PortfolioItem(id=uuid.uuid4(), user_id=current_user.id, **payload.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.get("", response_model=list[PortfolioItemOut])
+def list_items(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    return (
+        db.query(PortfolioItem)
+        .filter(PortfolioItem.user_id == current_user.id)
+        .order_by(PortfolioItem.created_at.desc())
+        .all()
+    )
+
+
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_item(
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verifier_talent(current_user)
+    item = (
+        db.query(PortfolioItem)
+        .filter(PortfolioItem.id == item_id, PortfolioItem.user_id == current_user.id)
+        .first()
+    )
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Element introuvable.")
+    db.delete(item)
+    db.commit()
+
+===== app\routers\cv.py =====
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.profiles import EtudiantProfile
+from app.models.user import User
+from app.schemas.profiles import EtudiantProfileOut
+from app.services.cv_parser import ensure_storage_dir, parse_cv
+
+router = APIRouter()
+
+ALLOWED_CONTENT_TYPE = "application/pdf"
+MAX_FILE_SIZE_MB = 5
+
+
+@router.post("/etudiant/cv", response_model=EtudiantProfileOut)
+async def upload_cv(
+    file: UploadFile,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.type_profil != "etudiant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul un etudiant peut deposer un CV.",
+        )
+
+    if file.content_type != ALLOWED_CONTENT_TYPE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seuls les fichiers PDF sont acceptes pour le moment.",
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le fichier depasse la taille maximale de {MAX_FILE_SIZE_MB} Mo.",
+        )
+
+    storage_dir = ensure_storage_dir(settings.cv_storage_dir)
+    file_path = storage_dir / f"{current_user.id}.pdf"
+
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    result = parse_cv(str(file_path))
+    competences_detectees = result["competences_detectees"]
+
+    profile = db.query(EtudiantProfile).filter(EtudiantProfile.user_id == current_user.id).first()
+
+    if profile is None:
+        profile = EtudiantProfile(id=uuid.uuid4(), user_id=current_user.id)
+        db.add(profile)
+
+    profile.cv_url = str(file_path)
+
+    # Fusionne les competences detectees avec celles deja renseignees manuellement,
+    # sans creer de doublons.
+    competences_existantes = (
+        [c.strip() for c in profile.competences.split(",")] if profile.competences else []
+    )
+    toutes_les_competences = list(dict.fromkeys(competences_existantes + competences_detectees))
+    profile.competences = ", ".join(toutes_les_competences)
+
+    db.commit()
+    db.refresh(profile)
+
+    return profile
+
+===== app\schemas\offre.py =====
+
+import uuid
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+DisponibiliteOffre = Literal["immediate", "1_mois", "3_mois", "6_mois"]
+
+
+class OffreCreate(BaseModel):
+    titre: str = Field(min_length=3)
+    description: str | None = None
+    type_contrat: Literal["stage", "cdd", "cdi", "mission"]
+    competences_obligatoires: str | None = None
+    competences_souhaitees: str | None = None
+    soft_skills: str | None = None
+    niveau_experience: str | None = None
+    disponibilite: DisponibiliteOffre | None = None
+    localisation: str | None = None
+    remuneration: float | None = Field(default=None, ge=0)
+    budget_tjm: float | None = Field(default=None, ge=0)
+
+
+class OffreUpdate(BaseModel):
+    titre: str | None = Field(default=None, min_length=3)
+    description: str | None = None
+    type_contrat: Literal["stage", "cdd", "cdi", "mission"] | None = None
+    competences_obligatoires: str | None = None
+    competences_souhaitees: str | None = None
+    soft_skills: str | None = None
+    niveau_experience: str | None = None
+    disponibilite: DisponibiliteOffre | None = None
+    localisation: str | None = None
+    remuneration: float | None = Field(default=None, ge=0)
+    budget_tjm: float | None = Field(default=None, ge=0)
+    statut: Literal["active", "expiree", "archivee"] | None = None
+
+
+class OffreOut(BaseModel):
+    id: uuid.UUID
+    entreprise_id: uuid.UUID
+    titre: str
+    description: str | None
+    type_contrat: str
+    competences_obligatoires: str | None
+    competences_souhaitees: str | None
+    soft_skills: str | None
+    niveau_experience: str | None
+    disponibilite: str | None  # tolerant : ne casse pas la lecture de donnees existantes
+    localisation: str | None
+    remuneration: float | None
+    budget_tjm: float | None
+    statut: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+===== app\schemas\favori.py =====
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
+from app.schemas.offre import OffreOut
+
+
+class FavoriCreate(BaseModel):
+    offre_id: uuid.UUID
+
+
+class FavoriOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    offre_id: uuid.UUID
+    created_at: datetime
+    offre: OffreOut | None = None
+
+===== app\schemas\entretien.py =====
+
+import uuid
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+ModeEntretien = Literal["visio", "presentiel", "telephone"]
+StatutEntretien = Literal["planifie", "annule", "termine"]
+
+
+class EntretienCreate(BaseModel):
+    candidature_id: uuid.UUID
+    date_heure: datetime
+    duree_minutes: int = Field(default=30, ge=5, le=480)
+    mode: ModeEntretien = "visio"
+    lieu_ou_lien: str | None = Field(default=None, max_length=500)
+    message: str | None = Field(default=None, max_length=2000)
+
+
+class EntretienUpdate(BaseModel):
+    date_heure: datetime | None = None
+    duree_minutes: int | None = Field(default=None, ge=5, le=480)
+    mode: ModeEntretien | None = None
+    lieu_ou_lien: str | None = Field(default=None, max_length=500)
+    message: str | None = Field(default=None, max_length=2000)
+    statut: StatutEntretien | None = None
+
+
+class EntretienOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    candidature_id: uuid.UUID
+    date_heure: datetime
+    duree_minutes: int
+    mode: str
+    lieu_ou_lien: str | None = None
+    message: str | None = None
+    statut: str
+
+===== app\schemas\message.py =====
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class MessageCreate(BaseModel):
+    contenu: str = Field(min_length=1, max_length=2000)
+
+
+class MessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    candidature_id: uuid.UUID
+    expediteur_id: uuid.UUID
+    contenu: str
+    lue: bool
+    created_at: datetime
+
+
+class ConversationOut(BaseModel):
+    candidature_id: uuid.UUID
+    offre_titre: str
+    interlocuteur_nom: str
+    dernier_message: str
+    dernier_message_at: datetime
+    non_lus: int
+
+===== app\schemas\certification.py =====
+
+import uuid
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CertificationCreate(BaseModel):
+    intitule: str = Field(min_length=1, max_length=200)
+    organisme: str | None = Field(default=None, max_length=200)
+    date_obtention: date | None = None
+    url_verification: str | None = Field(default=None, max_length=500)
+
+
+class CertificationOut(CertificationCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+
+===== app\schemas\portfolio.py =====
+
+import uuid
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class PortfolioItemCreate(BaseModel):
+    titre: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    url: str | None = Field(default=None, max_length=500)
+    image_url: str | None = Field(default=None, max_length=500)
+
+
+class PortfolioItemOut(PortfolioItemCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+
+===== app\schemas\notification.py =====
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class NotificationOut(BaseModel):
+    id: uuid.UUID
+    titre: str
+    message: str | None
+    type_evenement: str
+    lue: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+===== app\core\matching_config.py =====
+
+# Ponderation du moteur de matching V1 (decision section 6.6 du recap projet).
+# Valeurs ajustables selon les retours utilisateurs, sans toucher au reste du code.
+
+POIDS_COMPETENCES_OBLIGATOIRES = 40
+POIDS_COMPETENCES_SOUHAITEES = 20
+POIDS_EXPERIENCE = 20
+POIDS_DISPONIBILITE = 10
+POIDS_SOFT_SKILLS = 10
+
+SEUIL_RECOMMANDATION = 40  # score en dessous duquel une offre n'est pas mise en avant

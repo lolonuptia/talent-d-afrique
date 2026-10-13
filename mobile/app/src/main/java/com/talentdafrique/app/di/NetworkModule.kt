@@ -1,5 +1,15 @@
 package com.talentdafrique.app.di
 
+import com.talentdafrique.app.data.remote.api.PortfolioApi
+
+import com.talentdafrique.app.data.remote.api.CertificationsApi
+
+import com.talentdafrique.app.data.remote.api.MessagesApi
+
+import com.talentdafrique.app.data.remote.api.EntretiensApi
+
+import com.talentdafrique.app.data.remote.api.FavorisApi
+
 import android.content.Context
 import android.os.Build
 import com.squareup.moshi.Moshi
@@ -118,4 +128,23 @@ object NetworkModule {
     @Singleton
     fun provideNotificationsApi(retrofit: Retrofit): NotificationsApi =
         retrofit.create(NotificationsApi::class.java)
-}
+
+    @Provides
+    @Singleton
+    fun provideFavorisApi(retrofit: Retrofit): FavorisApi = retrofit.create(FavorisApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideEntretiensApi(retrofit: Retrofit): EntretiensApi = retrofit.create(EntretiensApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMessagesApi(retrofit: Retrofit): MessagesApi = retrofit.create(MessagesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCertificationsApi(retrofit: Retrofit): CertificationsApi = retrofit.create(CertificationsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePortfolioApi(retrofit: Retrofit): PortfolioApi = retrofit.create(PortfolioApi::class.java)}

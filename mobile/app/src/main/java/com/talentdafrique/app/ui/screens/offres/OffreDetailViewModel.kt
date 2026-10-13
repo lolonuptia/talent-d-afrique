@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.talentdafrique.app.data.remote.dto.OffreDto
 import com.talentdafrique.app.data.repository.CandidaturesRepository
+import com.talentdafrique.app.data.repository.FavorisRepository
 import com.talentdafrique.app.data.repository.OffresRepository
 import com.talentdafrique.app.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,12 +22,14 @@ data class OffreDetailUiState(
     val isPostulating: Boolean = false,
     val candidatureEnvoyee: Boolean = false,
     val postulerError: String? = null,
+    val isFavori: Boolean = false,
 )
 
 @HiltViewModel
 class OffreDetailViewModel @Inject constructor(
     private val offresRepository: OffresRepository,
     private val candidaturesRepository: CandidaturesRepository,
+    private val favorisRepository: FavorisRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -37,14 +40,35 @@ class OffreDetailViewModel @Inject constructor(
 
     init {
         loadOffre()
+        loadFavori()
     }
 
     fun loadOffre() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            when (val result = offresRepository.getOffre(offreId)) {
+            when (val result = offresRepository.getOffreAvecScore(offreId)) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offre = result.data)
                 is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    private fun loadFavori() {
+        viewModelScope.launch {
+            val r = favorisRepository.list()
+            if (r is Result.Success) {
+                _uiState.value = _uiState.value.copy(isFavori = r.data.any { it.offreId == offreId })
+            }
+        }
+    }
+
+    fun toggleFavori() {
+        viewModelScope.launch {
+            val actuel = _uiState.value.isFavori
+            val r = if (actuel) favorisRepository.remove(offreId) else favorisRepository.add(offreId)
+            when (r) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isFavori = !actuel, postulerError = null)
+                is Result.Error -> _uiState.value = _uiState.value.copy(postulerError = r.message)
             }
         }
     }

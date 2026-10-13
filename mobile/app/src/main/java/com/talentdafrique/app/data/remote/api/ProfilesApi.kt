@@ -1,5 +1,7 @@
 package com.talentdafrique.app.data.remote.api
 
+import com.talentdafrique.app.data.remote.dto.EcoleLightDto
+
 import com.talentdafrique.app.data.remote.dto.OffreDto
 import com.talentdafrique.app.data.remote.dto.ProfileDto
 import com.talentdafrique.app.data.remote.dto.StatsEcoleDto
@@ -13,6 +15,12 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 
 interface ProfilesApi {
+
+    @GET("profiles/ecoles")
+    suspend fun listEcoles(): List<EcoleLightDto>
+
+    @POST("profiles/etudiant/rattacher-ecole/{ecoleId}")
+    suspend fun rattacherEcole(@Path("ecoleId") ecoleId: String)
 
     @GET("profiles/me")
     suspend fun getMyProfileRaw(): Map<String, @JvmSuppressWildcards Any?>

@@ -55,6 +55,8 @@ private fun libelleDisponibilite(value: String?): String? =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    onNavigate: (String) -> Unit = {},
+    onOpenCompte: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -133,6 +135,10 @@ fun ProfileScreen(
                         color = if (etudiantProfile?.cvUrl != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
                     )
+
+                    uiState.cvMessage?.let {
+                        Text(text = it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+                    }
 
                     uiState.cvUploadError?.let { message ->
                         Text(text = message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
@@ -216,6 +222,20 @@ fun ProfileScreen(
                             }
                         }
 
+                        ProfileEditField("Expériences", uiState.editExperiences, viewModel::onEditExperiencesChange, "Stages, jobs, projets...")
+                        ProfileEditField("Formations", uiState.editFormations, viewModel::onEditFormationsChange, "Diplômes, écoles, années...")
+                        ProfileEditField("Préférences", uiState.editPreferences, viewModel::onEditPreferencesChange, "Secteurs, villes, type de contrat...")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                        ) {
+                            androidx.compose.material3.Switch(
+                                checked = uiState.editVisible,
+                                onCheckedChange = viewModel::onEditVisibleChange,
+                            )
+                            Text(text = "Visible par les entreprises", modifier = Modifier.padding(start = 12.dp))
+                        }
+
                         uiState.saveError?.let { message ->
                             Text(
                                 text = message,
@@ -269,6 +289,14 @@ fun ProfileScreen(
                             Text(text = label, modifier = Modifier.padding(top = 2.dp))
                         }
 
+                        ProfileInfoRow("Expériences", etudiantProfile?.experiences)
+                        ProfileInfoRow("Formations", etudiantProfile?.formations)
+                        ProfileInfoRow("Préférences", etudiantProfile?.preferences)
+                        ProfileInfoRow(
+                            "Visibilité",
+                            if (etudiantProfile?.visibleAuxEntreprises == true) "Visible par les entreprises" else "Profil masqué aux entreprises",
+                        )
+
                         if (etudiantProfile?.competences.isNullOrBlank() && libelleDisponibilite(etudiantProfile?.disponibilite) == null) {
                             Text(
                                 text = "Complète ton profil pour de meilleures recommandations.",
@@ -280,6 +308,14 @@ fun ProfileScreen(
                     }
                 }
             }
+
+            OutlinedButton(
+                onClick = onOpenCompte,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp),
+            ) { Text("Mon compte et mes données") }
+
+            ProfileShortcuts(onNavigate)
 
             Divider(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),

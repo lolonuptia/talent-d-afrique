@@ -26,6 +26,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.data.repository.Result
+import com.talentdafrique.app.ui.screens.auth.WrongRoleScreen
+import kotlinx.coroutines.flow.collectLatest
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -57,6 +61,7 @@ fun TalentDAfriqueRoot(viewModel: SessionViewModel = viewModel()) {
                 CircularProgressIndicator()
             }
         }
+        is SessionState.WrongRole -> WrongRoleScreen(onLogout = viewModel::logout)
         is SessionState.Resolved -> {
             TalentDAfriqueNavGraph(
                 startDestination = if (current.isLoggedIn) Routes.HOME else Routes.LOGIN,
@@ -68,6 +73,7 @@ fun TalentDAfriqueRoot(viewModel: SessionViewModel = viewModel()) {
 sealed interface SessionState {
     data object Loading : SessionState
     data class Resolved(val isLoggedIn: Boolean) : SessionState
+    data object WrongRole : SessionState
 }
 
 @HiltViewModel
@@ -80,9 +86,22 @@ class SessionViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            authRepository.isLoggedIn.collect { loggedIn ->
-                _state.value = SessionState.Resolved(isLoggedIn = loggedIn)
+            authRepository.isLoggedIn.collectLatest { loggedIn ->
+                if (!loggedIn) {
+                    _state.value = SessionState.Resolved(isLoggedIn = false)
+                    return@collectLatest
+                }
+                _state.value = when (val result = authRepository.me()) {
+                    is Result.Success ->
+                        if (result.data.typeProfil == TypeProfil.ETUDIANT) SessionState.Resolved(true)
+                        else SessionState.WrongRole
+                    is Result.Error -> SessionState.Resolved(true)
+                }
             }
         }
+    }
+
+    fun logout() {
+        viewModelScope.launch { authRepository.logout() }
     }
 }

@@ -1,5 +1,9 @@
 package com.talentdafrique.app.data.repository
 
+import com.talentdafrique.app.data.remote.dto.EcoleLightDto
+
+import com.talentdafrique.app.data.remote.toUserMessage
+
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.talentdafrique.app.data.remote.api.ProfilesApi
@@ -34,13 +38,26 @@ class ProfilesRepository @Inject constructor(
 
         profile?.let { Result.Success(it) } ?: Result.Error("Profil introuvable.")
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Impossible de récupérer ton profil.")
+        Result.Error(e.toUserMessage("Impossible de récupérer ton profil."))
+    }
+
+    suspend fun listEcoles(): Result<List<EcoleLightDto>> = try {
+        Result.Success(profilesApi.listEcoles())
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Impossible de charger la liste des écoles."))
+    }
+
+    suspend fun rattacherEcole(ecoleId: String): Result<Unit> = try {
+        profilesApi.rattacherEcole(ecoleId)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Impossible de rejoindre cette école."))
     }
 
     suspend fun updateMyProfile(fields: Map<String, Any?>): Result<Unit> = try {
         profilesApi.updateMyProfile(fields)
         Result.Success(Unit)
     } catch (e: Exception) {
-        Result.Error(e.message ?: "Impossible de mettre à jour ton profil.")
+        Result.Error(e.toUserMessage("Impossible de mettre à jour ton profil."))
     }
 }

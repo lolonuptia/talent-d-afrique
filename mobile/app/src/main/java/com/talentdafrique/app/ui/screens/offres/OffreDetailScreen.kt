@@ -1,5 +1,7 @@
 package com.talentdafrique.app.ui.screens.offres
 
+import com.talentdafrique.app.ui.components.formatMontant
+
 
 import androidx.compose.foundation.background
 
@@ -58,8 +60,8 @@ private fun libelleContrat(type: TypeContrat): String = when (type) {
 }
 
 private fun couleurScore(score: Double): Color = when {
-    score >= 0.7 -> ScoreHigh
-    score >= 0.4 -> ScoreMedium
+    score >= 70.0 -> ScoreHigh
+    score >= 40.0 -> ScoreMedium
     else -> ScoreLow
 }
 
@@ -69,6 +71,17 @@ fun OffreDetailScreen(
     viewModel: OffreDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showMessageDialog = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (showMessageDialog.value) {
+        CandidatureMessageDialog(
+            onDismiss = { showMessageDialog.value = false },
+            onConfirm = { msg ->
+                showMessageDialog.value = false
+                viewModel.postuler(msg)
+            },
+        )
+    }
 
     LaunchedEffect(uiState.candidatureEnvoyee) {
         if (uiState.candidatureEnvoyee) onCandidatureEnvoyee()
@@ -132,7 +145,7 @@ fun OffreDetailScreen(
                                                 modifier = Modifier.height(14.dp),
                                             )
                                             Text(
-                                                text = "${(score * 100).toInt()}% match",
+                                                text = "${score.toInt()}% match",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = Color.White,
                                                 modifier = Modifier.padding(start = 4.dp),
@@ -178,7 +191,7 @@ fun OffreDetailScreen(
                                         modifier = Modifier.height(16.dp),
                                     )
                                     Text(
-                                        text = "$it €",
+                                        text = formatMontant(it),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = Color.White.copy(alpha = 0.85f),
                                         modifier = Modifier.padding(start = 4.dp),
@@ -211,6 +224,9 @@ fun OffreDetailScreen(
                             Text(text = it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         }
 
+                        offre.detailScore?.let { ScoreDetailCard(it) }
+                        OffreInfosCard(offre)
+
                         // Marge basse pour ne pas être masqué par le bouton fixe
                         Spacer(modifier = Modifier.height(80.dp))
                     }
@@ -222,6 +238,11 @@ fun OffreDetailScreen(
                     shadowElevation = 8.dp,
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = viewModel::toggleFavori,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        ) { Text(if (uiState.isFavori) "Retirer des favoris" else "Ajouter aux favoris") }
+
                         uiState.postulerError?.let { message ->
                             Text(
                                 text = message,
@@ -232,7 +253,7 @@ fun OffreDetailScreen(
                         }
 
                         Button(
-                            onClick = { viewModel.postuler() },
+                            onClick = { showMessageDialog.value = true },
                             enabled = !uiState.isPostulating && !uiState.candidatureEnvoyee,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.fillMaxWidth().height(52.dp),

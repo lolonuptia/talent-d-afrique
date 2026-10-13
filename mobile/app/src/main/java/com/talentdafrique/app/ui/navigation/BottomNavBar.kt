@@ -11,6 +11,9 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -18,9 +21,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -40,10 +46,17 @@ private val bottomNavItems = listOf(
     BottomNavItem(Routes.PROFILE, "Profil", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TalentDAfriqueBottomBar(navController: NavHostController) {
+fun TalentDAfriqueBottomBar(
+    navController: NavHostController,
+    badgeViewModel: NotificationBadgeViewModel = hiltViewModel(),
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val unread by badgeViewModel.count.collectAsState()
+
+    LaunchedEffect(currentRoute) { badgeViewModel.refreshNow() }
 
     NavigationBar(tonalElevation = 3.dp) {
         bottomNavItems.forEach { item ->
@@ -60,10 +73,14 @@ fun TalentDAfriqueBottomBar(navController: NavHostController) {
                     }
                 },
                 icon = {
-                    Icon(
-                        imageVector = if (selected) item.filledIcon else item.outlinedIcon,
-                        contentDescription = item.label,
-                    )
+                    val icon = if (selected) item.filledIcon else item.outlinedIcon
+                    if (item.route == Routes.NOTIFICATIONS && unread > 0) {
+                        BadgedBox(badge = { Badge { Text(if (unread > 9) "9+" else unread.toString()) } }) {
+                            Icon(imageVector = icon, contentDescription = item.label)
+                        }
+                    } else {
+                        Icon(imageVector = icon, contentDescription = item.label)
+                    }
                 },
                 label = { Text(item.label) },
                 colors = NavigationBarItemDefaults.colors(

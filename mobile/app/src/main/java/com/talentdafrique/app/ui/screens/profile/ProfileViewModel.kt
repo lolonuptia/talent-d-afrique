@@ -31,10 +31,15 @@ data class ProfileUiState(
     val errorMessage: String? = null,
     val isUploadingCv: Boolean = false,
     val cvUploadError: String? = null,
+    val cvMessage: String? = null,
     // Édition du profil
     val isEditing: Boolean = false,
     val editCompetences: String = "",
     val editDisponibilite: DisponibiliteOption? = null,
+    val editExperiences: String = "",
+    val editFormations: String = "",
+    val editPreferences: String = "",
+    val editVisible: Boolean = false,
     val isSaving: Boolean = false,
     val saveError: String? = null,
 )
@@ -66,15 +71,13 @@ class ProfileViewModel @Inject constructor(
                     val user = userResult.data
                     when (val profileResult = profilesRepository.getMyProfile(user.typeProfil)) {
                         is Result.Success -> {
-                            val etudiant = profileResult.data as? ProfileDto.Etudiant
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 user = user,
                                 profile = profileResult.data,
-                                editCompetences = etudiant?.competences ?: "",
-                                editDisponibilite = DisponibiliteOption.entries.find { it.value == etudiant?.disponibilite },
                             )
                         }
+                        // Profil pas encore créé (404) : l'écran s'affiche quand même, vide.
                         is Result.Error -> _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             user = user,
@@ -87,17 +90,18 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun logout() {
-        viewModelScope.launch {
-            authRepository.logout()
-        }
+        viewModelScope.launch { authRepository.logout() }
     }
 
     fun uploadCv(file: File) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isUploadingCv = true, cvUploadError = null)
+            _uiState.value = _uiState.value.copy(isUploadingCv = true, cvUploadError = null, cvMessage = null)
             when (val result = cvRepository.uploadCv(file)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(isUploadingCv = false)
+                    _uiState.value = _uiState.value.copy(
+                        isUploadingCv = false,
+                        cvMessage = "CV analysé ✓ Tes compétences ont été complétées, vérifie-les en modifiant ton profil.",
+                    )
                     loadProfile()
                 }
                 is Result.Error -> _uiState.value = _uiState.value.copy(isUploadingCv = false, cvUploadError = result.message)
@@ -106,11 +110,15 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun startEditing() {
-        val etudiant = _uiState.value.profile as? ProfileDto.Etudiant
+        val e = _uiState.value.profile as? ProfileDto.Etudiant
         _uiState.value = _uiState.value.copy(
             isEditing = true,
-            editCompetences = etudiant?.competences ?: "",
-            editDisponibilite = DisponibiliteOption.entries.find { it.value == etudiant?.disponibilite },
+            editCompetences = e?.competences ?: "",
+            editDisponibilite = DisponibiliteOption.entries.find { it.value == e?.disponibilite },
+            editExperiences = e?.experiences ?: "",
+            editFormations = e?.formations ?: "",
+            editPreferences = e?.preferences ?: "",
+            editVisible = e?.visibleAuxEntreprises ?: false,
             saveError = null,
         )
     }
@@ -119,12 +127,14 @@ class ProfileViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isEditing = false, saveError = null)
     }
 
-    fun onEditCompetencesChange(value: String) {
-        _uiState.value = _uiState.value.copy(editCompetences = value)
-    }
+    fun onEditCompetencesChange(value: String) { _uiState.value = _uiState.value.copy(editCompetences = value) }
+    fun onEditExperiencesChange(value: String) { _uiState.value = _uiState.value.copy(editExperiences = value) }
+    fun onEditFormationsChange(value: String) { _uiState.value = _uiState.value.copy(editFormations = value) }
+    fun onEditPreferencesChange(value: String) { _uiState.value = _uiState.value.copy(editPreferences = value) }
+    fun onEditVisibleChange(value: Boolean) { _uiState.value = _uiState.value.copy(editVisible = value) }
 
     fun onEditDisponibiliteSelected(option: DisponibiliteOption) {
-        // Re-tap sur l'option déjà sélectionnée = désélectionner (revenir à "non renseigné")
+        // Re-tap sur l'option déjà sélectionnée = désélectionner
         val newValue = if (_uiState.value.editDisponibilite == option) null else option
         _uiState.value = _uiState.value.copy(editDisponibilite = newValue)
     }
@@ -136,6 +146,10 @@ class ProfileViewModel @Inject constructor(
             val fields = mapOf(
                 "competences" to state.editCompetences.ifBlank { null },
                 "disponibilite" to state.editDisponibilite?.value,
+                "experiences" to state.editExperiences.ifBlank { null },
+                "formations" to state.editFormations.ifBlank { null },
+                "preferences" to state.editPreferences.ifBlank { null },
+                "visible_aux_entreprises" to state.editVisible,
             )
             when (val result = profilesRepository.updateMyProfile(fields)) {
                 is Result.Success -> {

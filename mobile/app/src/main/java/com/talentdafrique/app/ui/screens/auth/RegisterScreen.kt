@@ -145,6 +145,20 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
             )
 
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                androidx.compose.material3.Checkbox(
+                    checked = uiState.consentement,
+                    onCheckedChange = viewModel::onConsentementChange,
+                )
+                Text(
+                    text = "J'accepte les conditions d'utilisation et la politique de confidentialité",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
             uiState.errorMessage?.let { message ->
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,

@@ -13,7 +13,7 @@ from app.models.user import User
 from app.schemas.candidature import CandidatureCreate, CandidatureOut, CandidatureStatutUpdate
 from app.schemas.matching import CandidatureAvecScore
 from app.services.matching import calculer_score_matching
-from app.services.notifications import notifier_changement_statut, notifier_nouvelle_candidature
+from app.services.notifications import creer_notification, notifier_changement_statut, notifier_nouvelle_candidature
 
 router = APIRouter()
 
@@ -225,3 +225,46 @@ def update_candidature_statut(
     notifier_changement_statut(db, candidature.candidat, candidature.offre.titre, payload.statut)
 
     return candidature
+
+
+@router.delete("/{candidature_id}", status_code=status.HTTP_204_NO_CONTENT)
+def retirer_candidature(
+    candidature_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Un candidat retire sa propre candidature (messages et entretiens lies supprimes)."""
+    candidature = (
+        db.query(Candidature)
+        .filter(Candidature.id == candidature_id, Candidature.candidat_id == current_user.id)
+        .first()
+    )
+    if candidature is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidature introuvable."
+        )
+    if candidature.statut == "acceptee":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une candidature acceptee ne peut plus etre retiree.",
+        )
+
+    titre_offre = candidature.offre.titre
+    entreprise_user_id = candidature.offre.entreprise.user_id
+
+    db.query(Message).filter(Message.candidature_id == candidature_id).delete(
+        synchronize_session=False
+    )
+    db.query(Entretien).filter(Entretien.candidature_id == candidature_id).delete(
+        synchronize_session=False
+    )
+    db.delete(candidature)
+    db.commit()
+
+    creer_notification(
+        db,
+        user_id=entreprise_user_id,
+        titre="Candidature retiree",
+        message=f"{current_user.nom} a retire sa candidature pour l'offre {titre_offre}.",
+        type_evenement="candidature_retiree",
+    )

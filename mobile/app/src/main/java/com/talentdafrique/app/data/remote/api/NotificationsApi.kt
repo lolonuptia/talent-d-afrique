@@ -1,5 +1,7 @@
 package com.talentdafrique.app.data.remote.api
 
+import retrofit2.http.Query
+
 import com.talentdafrique.app.data.remote.dto.NotificationDto
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -18,6 +20,9 @@ interface NotificationsApi {
 
     @GET("notifications/unread-count")
     suspend fun unreadCount(): Map<String, Int> // ex: {"count": 3}
+
+    @GET("notifications")
+    suspend fun listUnread(@Query("non_lues_seulement") unread: Boolean = true): List<NotificationDto>
 
     @PATCH("notifications/{id}/lue")
     suspend fun markAsRead(@Path("id") id: String): NotificationDto

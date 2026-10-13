@@ -1,0 +1,3013 @@
+﻿
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\MainActivity.kt =====
+
+package com.talentdafrique.app
+import com.talentdafrique.app.ui.theme.TalentDAfriqueTheme
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.ui.navigation.Routes
+import com.talentdafrique.app.ui.navigation.TalentDAfriqueNavGraph
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            TalentDAfriqueTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    TalentDAfriqueRoot()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Ã‰tat initial : le temps de lire le DataStore (isLoggedIn) et, si connectÃ©,
+ * de rÃ©cupÃ©rer le type de profil (pour savoir quel HomeScreen afficher), on
+ * affiche un simple spinner. Une fois rÃ©solu, on lance le NavGraph avec le
+ * bon point de dÃ©part.
+ */
+@Composable
+fun TalentDAfriqueRoot(viewModel: SessionViewModel = viewModel()) {
+    val state by viewModel.state.collectAsState()
+
+    when (val current = state) {
+        is SessionState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        is SessionState.Resolved -> {
+            TalentDAfriqueNavGraph(
+                startDestination = if (current.isLoggedIn) Routes.HOME else Routes.LOGIN,
+                userTypeProfil = current.typeProfil ?: TypeProfil.ETUDIANT,
+            )
+        }
+    }
+}
+
+sealed interface SessionState {
+    data object Loading : SessionState
+    data class Resolved(val isLoggedIn: Boolean, val typeProfil: TypeProfil?) : SessionState
+}
+
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<SessionState>(SessionState.Loading)
+    val state: StateFlow<SessionState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            authRepository.isLoggedIn.collect { loggedIn ->
+                if (!loggedIn) {
+                    _state.value = SessionState.Resolved(isLoggedIn = false, typeProfil = null)
+                } else {
+                    val meResult = authRepository.me()
+                    val typeProfil = (meResult as? com.talentdafrique.app.data.repository.Result.Success)
+                        ?.data?.typeProfil
+                    _state.value = SessionState.Resolved(isLoggedIn = true, typeProfil = typeProfil)
+                }
+            }
+        }
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\TalentDAfriqueApp.kt =====
+
+package com.talentdafrique.app
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class TalentDAfriqueApp : Application()
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\local\TokenManager.kt =====
+
+package com.talentdafrique.app.data.local
+
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.dataStore by preferencesDataStore(name = "auth_tokens")
+
+/**
+ * Persiste les deux tickets (access + refresh) dÃ©crits dans app/core/security.py.
+ *
+ * Remarque sÃ©curitÃ© : DataStore n'est pas chiffrÃ© nativement. Pour un vrai
+ * lancement en production, envisage androidx.security:security-crypto
+ * (EncryptedSharedPreferences) ou le Keystore Android pour le refresh token,
+ * qui vit 7 jours et est donc plus sensible que l'access token (30 min).
+ */
+@Singleton
+class TokenManager @Inject constructor(
+    context: Context,
+) {
+    private val dataStore = context.dataStore
+
+    private val accessTokenKey = stringPreferencesKey("access_token")
+    private val refreshTokenKey = stringPreferencesKey("refresh_token")
+
+    val accessTokenFlow: Flow<String?> =
+        dataStore.data.map { it[accessTokenKey] }
+
+    val isLoggedInFlow: Flow<Boolean> =
+        dataStore.data.map { it[accessTokenKey] != null }
+
+    suspend fun getAccessToken(): String? = dataStore.data.first()[accessTokenKey]
+    suspend fun getRefreshToken(): String? = dataStore.data.first()[refreshTokenKey]
+
+    suspend fun saveTokens(accessToken: String, refreshToken: String) {
+        dataStore.edit { prefs ->
+            prefs[accessTokenKey] = accessToken
+            prefs[refreshTokenKey] = refreshToken
+        }
+    }
+
+    suspend fun updateAccessToken(accessToken: String) {
+        dataStore.edit { prefs -> prefs[accessTokenKey] = accessToken }
+    }
+
+    suspend fun clear() {
+        dataStore.edit { it.clear() }
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\AuthInterceptor.kt =====
+
+package com.talentdafrique.app.data.remote
+
+import com.talentdafrique.app.data.local.TokenManager
+import kotlinx.coroutines.runBlocking
+import okhttp3.Interceptor
+import okhttp3.Response
+import javax.inject.Inject
+
+/**
+ * Ajoute automatiquement "Authorization: Bearer <access_token>" Ã  chaque
+ * requÃªte sortante, sauf sur les routes publiques (login, register).
+ */
+class AuthInterceptor @Inject constructor(
+    private val tokenManager: TokenManager,
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val original = chain.request()
+
+        val isPublicRoute = original.url.encodedPath.let {
+            it.endsWith("/auth/login") ||
+                it.endsWith("/auth/register") ||
+                it.endsWith("/auth/refresh") ||
+                it.endsWith("/health")
+        }
+
+        if (isPublicRoute) return chain.proceed(original)
+
+        val token = runBlocking { tokenManager.getAccessToken() }
+
+        val request = if (token != null) {
+            original.newBuilder()
+                .addHeader("Authorization", "Bearer $token")
+                .build()
+        } else {
+            original
+        }
+
+        return chain.proceed(request)
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\TokenAuthenticator.kt =====
+
+package com.talentdafrique.app.data.remote
+
+import com.squareup.moshi.Moshi
+import com.talentdafrique.app.BuildConfig
+import com.talentdafrique.app.data.local.TokenManager
+import com.talentdafrique.app.data.remote.dto.RefreshRequest
+import com.talentdafrique.app.data.remote.dto.TokenResponse
+import kotlinx.coroutines.runBlocking
+import okhttp3.Authenticator
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.Route
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Se dÃ©clenche automatiquement quand le serveur rÃ©pond 401 (access token
+ * expirÃ©, durÃ©e de vie 30 min cÃ´tÃ© backend). Appelle POST /auth/refresh
+ * avec le refresh token (7 jours), et si Ã§a marche, rejoue la requÃªte
+ * d'origine avec le nouveau access token â€” de faÃ§on totalement transparente
+ * pour le reste de l'app.
+ *
+ * Si le refresh Ã©choue aussi (refresh token expirÃ© ou invalidÃ©), on efface
+ * les tokens : l'app doit alors rediriger vers l'Ã©cran de login (voir
+ * TokenManager.isLoggedInFlow observÃ© depuis la racine de la navigation).
+ */
+@Singleton
+class TokenAuthenticator @Inject constructor(
+    private val tokenManager: TokenManager,
+    private val moshi: Moshi,
+) : Authenticator {
+
+    // Client HTTP nu, sÃ©parÃ© de celui utilisÃ© partout ailleurs, pour Ã©viter
+    // une boucle infinie (sinon cet appel repasserait par ce mÃªme Authenticator).
+    private val plainClient = OkHttpClient.Builder().build()
+
+    override fun authenticate(route: Route?, response: Response): Request? {
+        // Ã‰vite de boucler si on a dÃ©jÃ  tentÃ© un refresh sur cette requÃªte
+        if (responseCount(response) >= 2) return null
+
+        val refreshToken = runBlocking { tokenManager.getRefreshToken() } ?: return null
+
+        val newAccessToken = runBlocking { doRefresh(refreshToken) } ?: run {
+            runBlocking { tokenManager.clear() }
+            return null
+        }
+
+        return response.request.newBuilder()
+            .header("Authorization", "Bearer $newAccessToken")
+            .build()
+    }
+
+    private suspend fun doRefresh(refreshToken: String): String? {
+        return try {
+            val adapter = moshi.adapter(RefreshRequest::class.java)
+            val body = adapter.toJson(RefreshRequest(refreshToken))
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(BuildConfig.BASE_URL + "auth/refresh")
+                .post(body)
+                .build()
+
+            val response = plainClient.newCall(request).execute()
+            if (!response.isSuccessful) return null
+
+            val responseBody = response.body?.string() ?: return null
+            val tokenAdapter = moshi.adapter(TokenResponse::class.java)
+            val tokens = tokenAdapter.fromJson(responseBody) ?: return null
+
+            tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+            tokens.accessToken
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun responseCount(response: Response): Int {
+        var result = 1
+        var prior = response.priorResponse
+        while (prior != null) {
+            result++
+            prior = prior.priorResponse
+        }
+        return result
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\AuthApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.LoginRequest
+import com.talentdafrique.app.data.remote.dto.RefreshRequest
+import com.talentdafrique.app.data.remote.dto.RegisterRequest
+import com.talentdafrique.app.data.remote.dto.TokenResponse
+import com.talentdafrique.app.data.remote.dto.UserDto
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+
+/** Miroir de app/routers/auth.py */
+interface AuthApi {
+
+    @POST("auth/register")
+    suspend fun register(@Body body: RegisterRequest): TokenResponse
+
+    @POST("auth/login")
+    suspend fun login(@Body body: LoginRequest): TokenResponse
+
+    @POST("auth/refresh")
+    suspend fun refresh(@Body body: RefreshRequest): TokenResponse
+
+    @GET("auth/me")
+    suspend fun me(): UserDto
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\CandidaturesApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.CandidatureCreateRequest
+import com.talentdafrique.app.data.remote.dto.CandidatureDto
+import com.talentdafrique.app.data.remote.dto.StatutUpdateRequest
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+/** Miroir de app/routers/candidatures.py */
+interface CandidaturesApi {
+
+    @POST("candidatures")
+    suspend fun postuler(@Body body: CandidatureCreateRequest): CandidatureDto
+
+    /** Mes propres candidatures (cÃ´tÃ© candidat). */
+    @GET("candidatures/mine")
+    suspend fun mesCandidatures(): List<CandidatureDto>
+
+    /** Candidatures reÃ§ues sur une offre (cÃ´tÃ© entreprise), avec filtres du dashboard. */
+    @GET("candidatures/offre/{offreId}")
+    suspend fun candidaturesRecues(
+        @Path("offreId") offreId: String,
+        @Query("score_min") scoreMin: Int? = null,
+        @Query("disponibilite") disponibilite: String? = null,
+        @Query("statut") statut: String? = null,
+    ): List<CandidatureDto>
+
+    @PATCH("candidatures/{id}/statut")
+    suspend fun changerStatut(@Path("id") id: String, @Body body: StatutUpdateRequest): CandidatureDto
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\NotificationsApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+import retrofit2.http.Path
+
+/**
+ * Miroir de la nouvelle Ã©tape 9 (notifications). En l'absence de push (FCM),
+ * l'app fait du polling : on rappelle listNotifications() pÃ©riodiquement
+ * (ex: au retour au premier plan de l'app, ou toutes les X minutes via
+ * WorkManager) pour rafraÃ®chir le badge de compteur non-lues.
+ */
+interface NotificationsApi {
+
+    @GET("notifications")
+    suspend fun listNotifications(): List<NotificationDto>
+
+    @GET("notifications/unread-count")
+    suspend fun unreadCount(): Map<String, Int> // ex: {"count": 3}
+
+    @PATCH("notifications/{id}/lue")
+    suspend fun markAsRead(@Path("id") id: String): NotificationDto
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\OffresApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+interface OffresApi {
+
+    @GET("offres")
+    suspend fun listOffres(
+        @Query("statut") statut: String? = null,
+        @Query("type_contrat") typeContrat: String? = null,
+    ): List<OffreDto>
+
+    /** Offres triÃ©es par score de matching pour le candidat connectÃ©. */
+    @GET("offres/recommandees")
+    suspend fun getOffresRecommandees(): List<OffreDto>
+
+    @GET("offres/{id}")
+    suspend fun getOffre(@Path("id") id: String): OffreDto
+
+    @GET("offres/mine")
+    suspend fun getMyOffres(): List<OffreDto>
+
+    @POST("offres")
+    suspend fun createOffre(@Body body: OffreDto): OffreDto
+
+    @PATCH("offres/{id}")
+    suspend fun updateOffre(@Path("id") id: String, @Body body: Map<String, @JvmSuppressWildcards Any?>): OffreDto
+
+    @DELETE("offres/{id}")
+    suspend fun deleteOffre(@Path("id") id: String)
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\ProfilesApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.data.remote.dto.StatsEcoleDto
+import okhttp3.MultipartBody
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Part
+import retrofit2.http.Path
+
+interface ProfilesApi {
+
+    @GET("profiles/me")
+    suspend fun getMyProfileRaw(): Map<String, @JvmSuppressWildcards Any?>
+
+    @PUT("profiles/me")
+    suspend fun updateMyProfile(@Body body: Map<String, @JvmSuppressWildcards Any?>): Map<String, @JvmSuppressWildcards Any?>
+
+    @PUT("profiles/ecole/rattacher/{etudiantId}")
+    suspend fun rattacherEtudiant(@Path("etudiantId") etudiantId: String)
+
+    @GET("profiles/ecole/etudiants")
+    suspend fun listEtudiants(): List<ProfileDto.Etudiant>
+
+    @GET("profiles/ecole/suggestions/{etudiantId}")
+    suspend fun suggestionsPourEtudiant(@Path("etudiantId") etudiantId: String): List<OffreDto>
+
+    @GET("profiles/ecole/stats")
+    suspend fun statsEmployabilite(): StatsEcoleDto
+}
+
+/** Miroir de app/routers/cv.py â€” upload et parsing automatique de CV. */
+interface CvApi {
+    @Multipart
+    @POST("profiles/etudiant/cv")
+    suspend fun uploadCv(@Part file: MultipartBody.Part): ProfileDto.Etudiant
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\api\UsersApi.kt =====
+
+package com.talentdafrique.app.data.remote.api
+
+import com.talentdafrique.app.data.remote.dto.UserDto
+import okhttp3.ResponseBody
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.PATCH
+
+/** Miroir de app/routers/users.py â€” droits RGPD (rectification, export, oubli). */
+interface UsersApi {
+
+    @PATCH("users/me")
+    suspend fun updateMe(@Body body: Map<String, @JvmSuppressWildcards Any?>): UserDto
+
+    @GET("users/me/export")
+    suspend fun exportMyData(): ResponseBody
+
+    @DELETE("users/me")
+    suspend fun deleteMyAccount()
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\dto\AuthDto.kt =====
+
+package com.talentdafrique.app.data.remote.dto
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+/**
+ * Ces DTO reflÃ¨tent app/schemas/user.py cÃ´tÃ© backend.
+ * Adapte les noms de champs exacts en regardant /docs (Swagger) de ton API si besoin â€”
+ * je pars des conventions habituelles FastAPI/Pydantic en snake_case.
+ */
+
+enum class TypeProfil {
+    @Json(name = "etudiant") ETUDIANT,
+    @Json(name = "entreprise") ENTREPRISE,
+    @Json(name = "ecole") ECOLE,
+    @Json(name = "freelance") FREELANCE,
+}
+
+@JsonClass(generateAdapter = true)
+data class RegisterRequest(
+    val nom: String,
+    val email: String,
+    @Json(name = "mot_de_passe") val motDePasse: String,
+    @Json(name = "type_profil") val typeProfil: TypeProfil,
+)
+
+@JsonClass(generateAdapter = true)
+data class LoginRequest(
+    val email: String,
+    @Json(name = "mot_de_passe") val motDePasse: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class RefreshRequest(
+    @Json(name = "refresh_token") val refreshToken: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class TokenResponse(
+    @Json(name = "access_token") val accessToken: String,
+    @Json(name = "refresh_token") val refreshToken: String,
+    @Json(name = "token_type") val tokenType: String = "bearer",
+)
+
+@JsonClass(generateAdapter = true)
+data class UserDto(
+    val id: String,
+    val nom: String,
+    val email: String,
+    @Json(name = "type_profil") val typeProfil: TypeProfil,
+    @Json(name = "is_admin") val isAdmin: Boolean = false,
+)
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\dto\OffreDto.kt =====
+
+package com.talentdafrique.app.data.remote.dto
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+enum class TypeContrat {
+    @Json(name = "stage") STAGE,
+    @Json(name = "cdd") CDD,
+    @Json(name = "cdi") CDI,
+    @Json(name = "mission") MISSION, // freelance â€” Ã©tape 8
+}
+
+enum class StatutOffre {
+    @Json(name = "active") ACTIVE,
+    @Json(name = "expiree") EXPIREE,
+    @Json(name = "archivee") ARCHIVEE,
+}
+
+@JsonClass(generateAdapter = true)
+data class OffreDto(
+    val id: String,
+    @Json(name = "entreprise_id") val entrepriseId: String,
+    val titre: String,
+    val description: String? = null,
+    @Json(name = "type_contrat") val typeContrat: TypeContrat,
+    @Json(name = "competences_obligatoires") val competencesObligatoires: String? = null,
+    @Json(name = "competences_souhaitees") val competencesSouhaitees: String? = null,
+    @Json(name = "soft_skills") val softSkills: String? = null,
+    @Json(name = "niveau_experience") val niveauExperience: String? = null,
+    val disponibilite: String? = null,
+    val localisation: String? = null,
+    val remuneration: Double? = null,
+    @Json(name = "budget_tjm") val budgetTjm: Double? = null, // pertinent si type_contrat = MISSION
+    val statut: StatutOffre,
+    // PrÃ©sents uniquement quand l'offre vient de GET /offres/recommandees (OffreAvecScore cÃ´tÃ© backend) â€”
+    // ce sont des champs plats, pas un sous-objet imbriquÃ©.
+    @Json(name = "score_global") val scoreGlobal: Double? = null,
+    val recommandee: Boolean? = null,
+)
+
+enum class StatutCandidature {
+    @Json(name = "recue") RECUE,
+    @Json(name = "en_cours") EN_COURS,
+    @Json(name = "entretien") ENTRETIEN,
+    @Json(name = "refusee") REFUSEE,
+    @Json(name = "acceptee") ACCEPTEE,
+}
+
+@JsonClass(generateAdapter = true)
+data class CandidatureDto(
+    val id: String,
+    @Json(name = "offre_id") val offreId: String,
+    @Json(name = "candidat_id") val candidatId: String,
+    val statut: StatutCandidature,
+    val message: String?,
+    // PrÃ©sent car CandidatureOut (backend) inclut dÃ©sormais l'offre imbriquÃ©e.
+    val offre: OffreDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class CandidatureCreateRequest(
+    @Json(name = "offre_id") val offreId: String,
+    val message: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class StatutUpdateRequest(
+    val statut: StatutCandidature,
+)
+
+@JsonClass(generateAdapter = true)
+data class NotificationDto(
+    val id: String,
+    val titre: String,
+    val message: String? = null,
+    @Json(name = "type_evenement") val typeEvenement: String? = null,
+    val lue: Boolean,
+    @Json(name = "created_at") val createdAt: String,
+)
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\remote\dto\ProfileDto.kt =====
+
+package com.talentdafrique.app.data.remote.dto
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+sealed interface ProfileDto {
+
+    @JsonClass(generateAdapter = true)
+    data class Etudiant(
+        val id: String,
+        @Json(name = "user_id") val userId: String? = null,
+        @Json(name = "ecole_id") val ecoleId: String? = null,
+        @Json(name = "cv_url") val cvUrl: String? = null,
+        val competences: String? = null,
+        val experiences: String? = null,
+        val formations: String? = null,
+        val disponibilite: String? = null,
+        val preferences: String? = null,
+    ) : ProfileDto
+
+    @JsonClass(generateAdapter = true)
+    data class Entreprise(
+        val id: String,
+        @Json(name = "user_id") val userId: String? = null,
+        val secteur: String? = null,
+        val taille: String? = null,
+        val culture: String? = null,
+        val description: String? = null,
+        val localisation: String? = null,
+        @Json(name = "logo_url") val logoUrl: String? = null,
+    ) : ProfileDto
+
+    @JsonClass(generateAdapter = true)
+    data class Ecole(
+        val id: String,
+        @Json(name = "user_id") val userId: String? = null,
+        @Json(name = "nom_etablissement") val nomEtablissement: String? = null,
+        val description: String? = null,
+        val localisation: String? = null,
+    ) : ProfileDto
+
+    @JsonClass(generateAdapter = true)
+    data class Freelance(
+        val id: String,
+        @Json(name = "user_id") val userId: String? = null,
+        val competences: String? = null,
+        val tjm: Double? = null,
+        val disponibilite: String? = null,
+        @Json(name = "portfolio_url") val portfolioUrl: String? = null,
+        @Json(name = "annees_experience") val anneesExperience: Int? = null,
+    ) : ProfileDto
+}
+
+@JsonClass(generateAdapter = true)
+data class StatsEcoleDto(
+    @Json(name = "nb_etudiants") val nbEtudiants: Int,
+    @Json(name = "candidatures_envoyees") val candidaturesEnvoyees: Int,
+    @Json(name = "candidatures_acceptees") val candidaturesAcceptees: Int,
+    @Json(name = "taux_placement") val tauxPlacement: Double,
+)
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\AuthRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.local.TokenManager
+import com.talentdafrique.app.data.remote.api.AuthApi
+import com.talentdafrique.app.data.remote.dto.LoginRequest
+import com.talentdafrique.app.data.remote.dto.RegisterRequest
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.data.remote.dto.UserDto
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * RÃ©sultat gÃ©nÃ©rique pour distinguer succÃ¨s / erreur rÃ©seau dans l'UI,
+ * sans exposer d'exception brute jusqu'aux Composables.
+ */
+sealed interface Result<out T> {
+    data class Success<T>(val data: T) : Result<T>
+    data class Error(val message: String) : Result<Nothing>
+}
+
+@Singleton
+class AuthRepository @Inject constructor(
+    private val authApi: AuthApi,
+    private val tokenManager: TokenManager,
+) {
+    val isLoggedIn: Flow<Boolean> = tokenManager.isLoggedInFlow
+
+    suspend fun login(email: String, motDePasse: String): Result<Unit> = try {
+        val tokens = authApi.login(LoginRequest(email, motDePasse))
+        tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Connexion impossible. VÃ©rifie ton email et mot de passe.")
+    }
+
+    suspend fun register(
+        nom: String,
+        email: String,
+        motDePasse: String,
+        typeProfil: TypeProfil,
+    ): Result<Unit> = try {
+        val tokens = authApi.register(RegisterRequest(nom, email, motDePasse, typeProfil))
+        tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Inscription impossible.")
+    }
+
+    suspend fun me(): Result<UserDto> = try {
+        Result.Success(authApi.me())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer le profil.")
+    }
+
+    suspend fun logout() {
+        // Le backend ne peut pas invalider le refresh token avant son expiration
+        // naturelle (limite connue, section 3 du rÃ©cap backend) â€” on se contente
+        // donc d'effacer les tokens localement.
+        tokenManager.clear()
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\CandidaturesRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.CandidaturesApi
+import com.talentdafrique.app.data.remote.dto.CandidatureCreateRequest
+import com.talentdafrique.app.data.remote.dto.CandidatureDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class CandidaturesRepository @Inject constructor(
+    private val candidaturesApi: CandidaturesApi,
+) {
+    suspend fun postuler(offreId: String, message: String? = null): Result<CandidatureDto> = try {
+        Result.Success(candidaturesApi.postuler(CandidatureCreateRequest(offreId, message)))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible d'envoyer ta candidature.")
+    }
+
+    suspend fun mesCandidatures(): Result<List<CandidatureDto>> = try {
+        Result.Success(candidaturesApi.mesCandidatures())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer tes candidatures.")
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\CvRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.CvApi
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class CvRepository @Inject constructor(
+    private val cvApi: CvApi,
+) {
+    suspend fun uploadCv(file: File): Result<ProfileDto.Etudiant> = try {
+        val requestBody = file.asRequestBody("application/pdf".toMediaTypeOrNull())
+        val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
+        Result.Success(cvApi.uploadCv(part))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible d'envoyer ton CV.")
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\NotificationsRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.NotificationsApi
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class NotificationsRepository @Inject constructor(
+    private val notificationsApi: NotificationsApi,
+) {
+    suspend fun listNotifications(): Result<List<NotificationDto>> = try {
+        Result.Success(notificationsApi.listNotifications())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer les notifications.")
+    }
+
+    suspend fun markAsRead(id: String): Result<NotificationDto> = try {
+        Result.Success(notificationsApi.markAsRead(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de marquer la notification comme lue.")
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\OffresRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.talentdafrique.app.data.remote.api.OffresApi
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class OffresRepository @Inject constructor(
+    private val offresApi: OffresApi,
+) {
+    suspend fun getOffresRecommandees(): Result<List<OffreDto>> = try {
+        Result.Success(offresApi.getOffresRecommandees())
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer les offres recommandÃ©es.")
+    }
+
+    suspend fun listOffres(statut: String? = null, typeContrat: String? = null): Result<List<OffreDto>> = try {
+        Result.Success(offresApi.listOffres(statut, typeContrat))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer les offres.")
+    }
+
+    suspend fun getOffre(id: String): Result<OffreDto> = try {
+        Result.Success(offresApi.getOffre(id))
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer cette offre.")
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\data\repository\ProfilesRepository.kt =====
+
+package com.talentdafrique.app.data.repository
+
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.talentdafrique.app.data.remote.api.ProfilesApi
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Le backend renvoie un JSON qui varie selon le type de profil connectÃ©.
+ * Retrofit ne peut pas typer dynamiquement le retour, donc on rÃ©cupÃ¨re un
+ * Map brut puis on le redÃ©sÃ©rialise vers le bon sous-type de ProfileDto.
+ */
+@Singleton
+class ProfilesRepository @Inject constructor(
+    private val profilesApi: ProfilesApi,
+    private val moshi: Moshi,
+) {
+    suspend fun getMyProfile(typeProfil: TypeProfil): Result<ProfileDto> = try {
+        val raw = profilesApi.getMyProfileRaw()
+        val mapAdapter = moshi.adapter<Map<String, Any?>>(
+            Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java),
+        )
+        val json = mapAdapter.toJson(raw)
+
+        val profile: ProfileDto? = when (typeProfil) {
+            TypeProfil.ETUDIANT -> moshi.adapter(ProfileDto.Etudiant::class.java).fromJson(json)
+            TypeProfil.ENTREPRISE -> moshi.adapter(ProfileDto.Entreprise::class.java).fromJson(json)
+            TypeProfil.ECOLE -> moshi.adapter(ProfileDto.Ecole::class.java).fromJson(json)
+            TypeProfil.FREELANCE -> moshi.adapter(ProfileDto.Freelance::class.java).fromJson(json)
+        }
+
+        profile?.let { Result.Success(it) } ?: Result.Error("Profil introuvable.")
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de rÃ©cupÃ©rer ton profil.")
+    }
+
+    suspend fun updateMyProfile(fields: Map<String, Any?>): Result<Unit> = try {
+        profilesApi.updateMyProfile(fields)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Impossible de mettre Ã  jour ton profil.")
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\di\NetworkModule.kt =====
+
+package com.talentdafrique.app.di
+
+import android.content.Context
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.talentdafrique.app.BuildConfig
+import com.talentdafrique.app.data.remote.AuthInterceptor
+import com.talentdafrique.app.data.remote.TokenAuthenticator
+import com.talentdafrique.app.data.remote.api.AuthApi
+import com.talentdafrique.app.data.remote.api.CandidaturesApi
+import com.talentdafrique.app.data.remote.api.CvApi
+import com.talentdafrique.app.data.remote.api.NotificationsApi
+import com.talentdafrique.app.data.remote.api.OffresApi
+import com.talentdafrique.app.data.remote.api.ProfilesApi
+import com.talentdafrique.app.data.remote.api.UsersApi
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context = context
+
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
+    ): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .authenticator(tokenAuthenticator)
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: OkHttpClient, moshi: Moshi): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.BASE_URL)
+            .client(client)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUsersApi(retrofit: Retrofit): UsersApi = retrofit.create(UsersApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideProfilesApi(retrofit: Retrofit): ProfilesApi = retrofit.create(ProfilesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCvApi(retrofit: Retrofit): CvApi = retrofit.create(CvApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOffresApi(retrofit: Retrofit): OffresApi = retrofit.create(OffresApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCandidaturesApi(retrofit: Retrofit): CandidaturesApi =
+        retrofit.create(CandidaturesApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideNotificationsApi(retrofit: Retrofit): NotificationsApi =
+        retrofit.create(NotificationsApi::class.java)
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\components\StateViews.kt =====
+
+package com.talentdafrique.app.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun LoadingView(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(strokeWidth = 3.dp)
+    }
+}
+
+@Composable
+fun ErrorView(
+    message: String,
+    onRetry: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.height(48.dp),
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp, bottom = 20.dp),
+            )
+            Button(onClick = onRetry) { Text("RÃ©essayer") }
+        }
+    }
+}
+
+@Composable
+fun EmptyView(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.height(56.dp),
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\components\StatusChip.kt =====
+
+package com.talentdafrique.app.ui.components
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.talentdafrique.app.data.remote.dto.StatutCandidature
+
+data class StatusStyle(val label: String, val color: Color)
+
+fun statutCandidatureStyle(statut: StatutCandidature): StatusStyle = when (statut) {
+    StatutCandidature.RECUE -> StatusStyle("ReÃ§ue", Color(0xFF6B6F6A))
+    StatutCandidature.EN_COURS -> StatusStyle("En cours", Color(0xFFE8792E))
+    StatutCandidature.ENTRETIEN -> StatusStyle("Entretien", Color(0xFF2E6BE8))
+    StatutCandidature.REFUSEE -> StatusStyle("RefusÃ©e", Color(0xFFBA1A1A))
+    StatutCandidature.ACCEPTEE -> StatusStyle("AcceptÃ©e", Color(0xFF1B7A5C))
+}
+
+@Composable
+fun StatusChip(style: StatusStyle, modifier: Modifier = Modifier) {
+    Surface(
+        color = style.color.copy(alpha = 0.12f),
+        contentColor = style.color,
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier,
+    ) {
+        Text(
+            text = style.label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\navigation\BottomNavBar.kt =====
+
+package com.talentdafrique.app.ui.navigation
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
+
+private data class BottomNavItem(
+    val route: String,
+    val label: String,
+    val filledIcon: ImageVector,
+    val outlinedIcon: ImageVector,
+)
+
+private val bottomNavItems = listOf(
+    BottomNavItem(Routes.HOME, "Accueil", Icons.Filled.Home, Icons.Outlined.Home),
+    BottomNavItem(Routes.OFFRES, "Offres", Icons.Filled.Work, Icons.Outlined.Work),
+    BottomNavItem(Routes.CANDIDATURES, "Suivi", Icons.Filled.Assignment, Icons.Outlined.Assignment),
+    BottomNavItem(Routes.NOTIFICATIONS, "Notifs", Icons.Filled.Notifications, Icons.Outlined.Notifications),
+    BottomNavItem(Routes.PROFILE, "Profil", Icons.Filled.Person, Icons.Outlined.Person),
+)
+
+@Composable
+fun TalentDAfriqueBottomBar(navController: NavHostController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    NavigationBar(tonalElevation = 3.dp) {
+        bottomNavItems.forEach { item ->
+            val selected = currentRoute == item.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    if (!selected) {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = if (selected) item.filledIcon else item.outlinedIcon,
+                        contentDescription = item.label,
+                    )
+                },
+                label = { Text(item.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                ),
+            )
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\navigation\NavGraph.kt =====
+
+package com.talentdafrique.app.ui.navigation
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+import com.talentdafrique.app.ui.screens.auth.LoginScreen
+import com.talentdafrique.app.ui.screens.auth.RegisterScreen
+import com.talentdafrique.app.ui.screens.candidatures.CandidaturesScreen
+import com.talentdafrique.app.ui.screens.home.HomeScreen
+import com.talentdafrique.app.ui.screens.notifications.NotificationsScreen
+import com.talentdafrique.app.ui.screens.offres.OffreDetailScreen
+import com.talentdafrique.app.ui.screens.offres.OffresListScreen
+import com.talentdafrique.app.ui.screens.profile.ProfileScreen
+
+object Routes {
+    const val LOGIN = "login"
+    const val REGISTER = "register"
+    const val HOME = "home"
+    const val OFFRES = "offres"
+    const val OFFRE_DETAIL = "offre/{offreId}"
+    const val CANDIDATURES = "candidatures"
+    const val NOTIFICATIONS = "notifications"
+    const val PROFILE = "profile"
+
+    fun offreDetail(offreId: String) = "offre/$offreId"
+}
+
+private val mainRoutes = setOf(
+    Routes.HOME,
+    Routes.OFFRES,
+    Routes.CANDIDATURES,
+    Routes.NOTIFICATIONS,
+    Routes.PROFILE,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TalentDAfriqueNavGraph(
+    navController: NavHostController = rememberNavController(),
+    startDestination: String = Routes.LOGIN,
+    userTypeProfil: TypeProfil = TypeProfil.ETUDIANT,
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            if (currentRoute in mainRoutes) {
+                TalentDAfriqueBottomBar(navController)
+            }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(innerPadding),
+        ) {
+            composable(Routes.LOGIN) {
+                LoginScreen(
+                    onLoginSuccess = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        }
+                    },
+                    onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                )
+            }
+
+            composable(Routes.REGISTER) {
+                RegisterScreen(
+                    onRegisterSuccess = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.HOME) {
+                Scaffold(topBar = { TopAppBar(title = { Text("Talent d'Afrique") }) }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        HomeScreen(
+                            typeProfil = userTypeProfil,
+                            onOffreClick = { offreId -> navController.navigate(Routes.offreDetail(offreId)) },
+                            onSeeAllOffresClick = {
+                                navController.navigate(Routes.OFFRES) {
+                                    launchSingleTop = true
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+            composable(Routes.OFFRES) {
+                Scaffold(topBar = { TopAppBar(title = { Text("Offres") }) }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        OffresListScreen(
+                            onOffreClick = { offreId -> navController.navigate(Routes.offreDetail(offreId)) },
+                        )
+                    }
+                }
+            }
+
+            composable(Routes.OFFRE_DETAIL) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("DÃ©tail de l'offre") },
+                            navigationIcon = {
+                                IconButton(onClick = { navController.popBackStack() }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowBack,
+                                        contentDescription = "Retour",
+                                    )
+                                }
+                            },
+                        )
+                    },
+                ) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        OffreDetailScreen(
+                            onCandidatureEnvoyee = { navController.popBackStack() },
+                        )
+                    }
+                }
+            }
+
+            composable(Routes.CANDIDATURES) {
+                Scaffold(topBar = { TopAppBar(title = { Text("Mes candidatures") }) }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        CandidaturesScreen()
+                    }
+                }
+            }
+
+            composable(Routes.NOTIFICATIONS) {
+                Scaffold(topBar = { TopAppBar(title = { Text("Notifications") }) }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        NotificationsScreen()
+                    }
+                }
+            }
+
+            composable(Routes.PROFILE) {
+                Scaffold(topBar = { TopAppBar(title = { Text("Mon profil") }) }) { padding ->
+                    Box(Modifier.padding(padding)) {
+                        ProfileScreen()
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\LoginScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginScreen(
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit,
+    viewModel: LoginViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.loginSuccess) {
+        if (uiState.loginSuccess) onLoginSuccess()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(PaddingValues(24.dp)),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "Talent d'Afrique",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            text = "Connecte-toi pour continuer",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
+        OutlinedTextField(
+            value = uiState.email,
+            onValueChange = viewModel::onEmailChange,
+            label = { Text("Email") },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp),
+        )
+
+        OutlinedTextField(
+            value = uiState.motDePasse,
+            onValueChange = viewModel::onMotDePasseChange,
+            label = { Text("Mot de passe") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        )
+
+        uiState.errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        Button(
+            onClick = viewModel::login,
+            enabled = !uiState.isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp),
+        ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+            } else {
+                Text("Se connecter")
+            }
+        }
+
+        TextButton(
+            onClick = onNavigateToRegister,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Pas encore de compte ? S'inscrire")
+        }
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\LoginViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class LoginUiState(
+    val email: String = "",
+    val motDePasse: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val loginSuccess: Boolean = false,
+)
+
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    fun onEmailChange(value: String) {
+        _uiState.value = _uiState.value.copy(email = value, errorMessage = null)
+    }
+
+    fun onMotDePasseChange(value: String) {
+        _uiState.value = _uiState.value.copy(motDePasse = value, errorMessage = null)
+    }
+
+    fun login() {
+        val state = _uiState.value
+        if (state.email.isBlank() || state.motDePasse.isBlank()) {
+            _uiState.value = state.copy(errorMessage = "Renseigne ton email et ton mot de passe.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true, errorMessage = null)
+            when (val result = authRepository.login(state.email, state.motDePasse)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true)
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = result.message,
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\auth\RegisterScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.auth
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+/**
+ * TODO : mÃªme pattern que LoginScreen â€” un RegisterViewModel qui appelle
+ * authRepository.register(nom, email, motDePasse, typeProfil), avec un
+ * sÃ©lecteur (ex: liste dÃ©roulante ou Segmented Button) pour choisir parmi
+ * les 4 TypeProfil (ETUDIANT / ENTREPRISE / ECOLE / FREELANCE).
+ */
+@Composable
+fun RegisterScreen(onRegisterSuccess: () -> Unit, onNavigateToLogin: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Text("Ã‰cran d'inscription â€” Ã  complÃ©ter sur le modÃ¨le de LoginScreen")
+    }
+}
+
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\candidatures\CandidaturesScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.candidatures
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.components.StatusChip
+import com.talentdafrique.app.ui.components.statutCandidatureStyle
+
+@Composable
+fun CandidaturesScreen(
+    viewModel: CandidaturesViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadCandidatures,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        uiState.candidatures.isEmpty() -> EmptyView(
+            title = "Aucune candidature envoyÃ©e",
+            subtitle = "Postule Ã  une offre pour la voir apparaÃ®tre ici.",
+            icon = Icons.Outlined.Assignment,
+        )
+
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(uiState.candidatures, key = { it.id }) { candidature ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = candidature.offre?.titre ?: "Offre",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(modifier = Modifier.height(0.dp))
+                            StatusChip(style = statutCandidatureStyle(candidature.statut))
+                        }
+
+                        candidature.offre?.localisation?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\candidatures\CandidaturesViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.candidatures
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.CandidatureDto
+import com.talentdafrique.app.data.repository.CandidaturesRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class CandidaturesUiState(
+    val isLoading: Boolean = true,
+    val candidatures: List<CandidatureDto> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+@HiltViewModel
+class CandidaturesViewModel @Inject constructor(
+    private val candidaturesRepository: CandidaturesRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(CandidaturesUiState())
+    val uiState: StateFlow<CandidaturesUiState> = _uiState.asStateFlow()
+
+    init {
+        loadCandidatures()
+    }
+
+    fun loadCandidatures() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = candidaturesRepository.mesCandidatures()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, candidatures = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\home\EtudiantHomeContent.kt =====
+
+package com.talentdafrique.app.ui.screens.home
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material.icons.outlined.WorkOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.screens.offres.OffreCard
+import com.talentdafrique.app.ui.theme.PrimaryContainer
+import com.talentdafrique.app.ui.theme.OnPrimaryContainer
+
+@Composable
+fun EtudiantHomeContent(
+    onOffreClick: (String) -> Unit,
+    onSeeAllClick: () -> Unit,
+    viewModel: EtudiantHomeViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadOffresRecommandees,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
+            item {
+                Surface(color = PrimaryContainer, contentColor = OnPrimaryContainer) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                        Text(text = "Bonjour ðŸ‘‹", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            text = "Voici les offres qui te correspondent le mieux",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = "RecommandÃ©es pour toi", style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = onSeeAllClick) { Text("Tout voir") }
+                }
+            }
+
+            if (uiState.offres.isEmpty()) {
+                item {
+                    EmptyView(
+                        title = "Pas encore de recommandations",
+                        subtitle = "ComplÃ¨te ton profil et ton CV pour recevoir des offres adaptÃ©es.",
+                        icon = Icons.Outlined.SearchOff,
+                        modifier = Modifier.height(320.dp),
+                    )
+                }
+            } else {
+                items(uiState.offres, key = { it.id }) { offre ->
+                    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                        OffreCard(offre = offre, onClick = { onOffreClick(offre.id) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\home\EtudiantHomeViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.OffresRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class EtudiantHomeUiState(
+    val isLoading: Boolean = true,
+    val offres: List<OffreDto> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+@HiltViewModel
+class EtudiantHomeViewModel @Inject constructor(
+    private val offresRepository: OffresRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(EtudiantHomeUiState())
+    val uiState: StateFlow<EtudiantHomeUiState> = _uiState.asStateFlow()
+
+    init {
+        loadOffresRecommandees()
+    }
+
+    fun loadOffresRecommandees() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = offresRepository.getOffresRecommandees()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offres = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\home\HomeScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.home
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.talentdafrique.app.data.remote.dto.TypeProfil
+
+@Composable
+fun HomeScreen(
+    typeProfil: TypeProfil,
+    onOffreClick: (String) -> Unit = {},
+    onSeeAllOffresClick: () -> Unit = {},
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        when (typeProfil) {
+            TypeProfil.ETUDIANT -> EtudiantHomeContent(
+                onOffreClick = onOffreClick,
+                onSeeAllClick = onSeeAllOffresClick,
+            )
+            TypeProfil.FREELANCE -> Text(
+                "Accueil freelance â€” missions recommandÃ©es Ã  venir",
+                modifier = Modifier.padding(24.dp),
+            )
+            TypeProfil.ENTREPRISE -> Text(
+                "Accueil entreprise â€” dashboard candidatures Ã  venir",
+                modifier = Modifier.padding(24.dp),
+            )
+            TypeProfil.ECOLE -> Text(
+                "Accueil Ã©cole â€” Ã©tudiants rattachÃ©s Ã  venir",
+                modifier = Modifier.padding(24.dp),
+            )
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\notifications\NotificationsScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.notifications
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+
+@Composable
+fun NotificationsScreen(
+    viewModel: NotificationsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadNotifications,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        uiState.notifications.isEmpty() -> EmptyView(
+            title = "Aucune notification",
+            subtitle = "Tu seras notifiÃ© ici de toute nouvelle activitÃ©.",
+            icon = Icons.Outlined.NotificationsNone,
+        )
+
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(uiState.notifications, key = { it.id }) { notification ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !notification.lue) { viewModel.markAsRead(notification.id) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (notification.lue) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        },
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (notification.lue) 0.dp else 1.dp),
+                ) {
+                    Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.Notifications,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.padding(start = 12.dp)) {
+                            Text(text = notification.titre, style = MaterialTheme.typography.titleSmall)
+                            notification.message?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\notifications\NotificationsViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.notifications
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.NotificationDto
+import com.talentdafrique.app.data.repository.NotificationsRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class NotificationsUiState(
+    val isLoading: Boolean = true,
+    val notifications: List<NotificationDto> = emptyList(),
+    val errorMessage: String? = null,
+)
+
+@HiltViewModel
+class NotificationsViewModel @Inject constructor(
+    private val notificationsRepository: NotificationsRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(NotificationsUiState())
+    val uiState: StateFlow<NotificationsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadNotifications()
+    }
+
+    fun loadNotifications() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = notificationsRepository.listNotifications()) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, notifications = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    fun markAsRead(id: String) {
+        viewModelScope.launch {
+            when (notificationsRepository.markAsRead(id)) {
+                is Result.Success -> loadNotifications()
+                is Result.Error -> Unit
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreCard.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.remote.dto.TypeContrat
+import com.talentdafrique.app.ui.theme.PrimaryContainer
+import com.talentdafrique.app.ui.theme.OnPrimaryContainer
+import com.talentdafrique.app.ui.theme.ScoreHigh
+import com.talentdafrique.app.ui.theme.ScoreLow
+import com.talentdafrique.app.ui.theme.ScoreMedium
+import com.talentdafrique.app.ui.theme.SecondaryContainer
+import com.talentdafrique.app.ui.theme.OnSecondaryContainer
+
+private fun libelleContrat(type: TypeContrat): String = when (type) {
+    TypeContrat.STAGE -> "Stage"
+    TypeContrat.CDD -> "CDD"
+    TypeContrat.CDI -> "CDI"
+    TypeContrat.MISSION -> "Mission"
+}
+
+private fun couleurScore(score: Double): androidx.compose.ui.graphics.Color = when {
+    score >= 0.7 -> ScoreHigh
+    score >= 0.4 -> ScoreMedium
+    else -> ScoreLow
+}
+
+@Composable
+fun OffreCard(
+    offre: OffreDto,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Surface(
+                    color = SecondaryContainer,
+                    contentColor = OnSecondaryContainer,
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Text(
+                        text = libelleContrat(offre.typeContrat),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+
+                offre.scoreGlobal?.let { score ->
+                    Surface(
+                        color = couleurScore(score).copy(alpha = 0.15f),
+                        contentColor = couleurScore(score),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text(
+                            text = "${(score * 100).toInt()}% match",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = offre.titre,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            offre.localisation?.let {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.height(16.dp),
+                    )
+                    Spacer(modifier = Modifier.height(0.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+
+            offre.remuneration?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Payments,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.height(16.dp),
+                    )
+                    Text(
+                        text = "$it â‚¬",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreDetailScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+@Composable
+fun OffreDetailScreen(
+    onCandidatureEnvoyee: () -> Unit = {},
+    viewModel: OffreDetailViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.candidatureEnvoyee) {
+        if (uiState.candidatureEnvoyee) onCandidatureEnvoyee()
+    }
+
+    when {
+        uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+
+        uiState.errorMessage != null -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(uiState.errorMessage ?: "")
+                TextButton(onClick = viewModel::loadOffre) { Text("RÃ©essayer") }
+            }
+        }
+
+        uiState.offre != null -> {
+            val offre = uiState.offre!!
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+            ) {
+                Text(text = offre.titre, style = MaterialTheme.typography.headlineSmall)
+
+                Text(
+                    text = listOfNotNull(offre.localisation, offre.typeContrat.name).joinToString(" Â· "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+
+                offre.remuneration?.let {
+                    Text(text = "$it â‚¬", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                }
+
+                offre.scoreGlobal?.let { score ->
+                    Text(
+                        text = "Score de correspondance : ${(score * 100).toInt()}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+
+                Text(text = "Description", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
+                Text(text = offre.description ?: "Aucune description fournie.", modifier = Modifier.padding(top = 8.dp))
+
+                offre.competencesObligatoires?.let {
+                    Text(text = "CompÃ©tences requises", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
+                    Text(text = it, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                offre.competencesSouhaitees?.let {
+                    Text(text = "CompÃ©tences souhaitÃ©es", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+                    Text(text = it, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                uiState.postulerError?.let { message ->
+                    Text(text = message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp))
+                }
+
+                Button(
+                    onClick = { viewModel.postuler() },
+                    enabled = !uiState.isPostulating && !uiState.candidatureEnvoyee,
+                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                ) {
+                    when {
+                        uiState.isPostulating -> CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                        uiState.candidatureEnvoyee -> Text("Candidature envoyÃ©e âœ“")
+                        else -> Text("Postuler")
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffreDetailViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.CandidaturesRepository
+import com.talentdafrique.app.data.repository.OffresRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class OffreDetailUiState(
+    val isLoading: Boolean = true,
+    val offre: OffreDto? = null,
+    val errorMessage: String? = null,
+    val isPostulating: Boolean = false,
+    val candidatureEnvoyee: Boolean = false,
+    val postulerError: String? = null,
+)
+
+@HiltViewModel
+class OffreDetailViewModel @Inject constructor(
+    private val offresRepository: OffresRepository,
+    private val candidaturesRepository: CandidaturesRepository,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private val offreId: String = checkNotNull(savedStateHandle["offreId"])
+
+    private val _uiState = MutableStateFlow(OffreDetailUiState())
+    val uiState: StateFlow<OffreDetailUiState> = _uiState.asStateFlow()
+
+    init {
+        loadOffre()
+    }
+
+    fun loadOffre() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = offresRepository.getOffre(offreId)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offre = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+
+    fun postuler(message: String? = null) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isPostulating = true, postulerError = null)
+            when (val result = candidaturesRepository.postuler(offreId, message)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isPostulating = false, candidatureEnvoyee = true)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isPostulating = false, postulerError = result.message)
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffresListScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.ui.components.EmptyView
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+
+private val typeFilters = listOf(
+    null to "Toutes",
+    "stage" to "Stage",
+    "cdd" to "CDD",
+    "cdi" to "CDI",
+    "mission" to "Mission",
+)
+
+@Composable
+fun OffresListScreen(
+    onOffreClick: (String) -> Unit,
+    viewModel: OffresListViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(typeFilters) { (value, label) ->
+                FilterChip(
+                    selected = uiState.selectedType == value,
+                    onClick = { viewModel.onTypeFilterSelected(value) },
+                    label = { androidx.compose.material3.Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(),
+                )
+            }
+        }
+
+        when {
+            uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+            uiState.errorMessage != null -> ErrorView(
+                message = uiState.errorMessage ?: "",
+                onRetry = viewModel::loadOffres,
+                icon = Icons.Outlined.WifiOff,
+            )
+
+            uiState.offres.isEmpty() -> EmptyView(
+                title = "Aucune offre trouvÃ©e",
+                subtitle = "Essaie un autre filtre ou reviens plus tard.",
+                icon = Icons.Outlined.SearchOff,
+            )
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(uiState.offres, key = { it.id }) { offre ->
+                    OffreCard(offre = offre, onClick = { onOffreClick(offre.id) })
+                }
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\offres\OffresListViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.offres
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.OffresRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class OffresListUiState(
+    val isLoading: Boolean = true,
+    val offres: List<OffreDto> = emptyList(),
+    val errorMessage: String? = null,
+    val selectedType: String? = null,
+)
+
+@HiltViewModel
+class OffresListViewModel @Inject constructor(
+    private val offresRepository: OffresRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(OffresListUiState())
+    val uiState: StateFlow<OffresListUiState> = _uiState.asStateFlow()
+
+    init {
+        loadOffres()
+    }
+
+    fun onTypeFilterSelected(type: String?) {
+        _uiState.value = _uiState.value.copy(selectedType = type)
+        loadOffres()
+    }
+
+    fun loadOffres() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            when (val result = offresRepository.listOffres(typeContrat = _uiState.value.selectedType)) {
+                is Result.Success -> _uiState.value = _uiState.value.copy(isLoading = false, offres = result.data)
+                is Result.Error -> _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\profile\ProfileScreen.kt =====
+
+package com.talentdafrique.app.ui.screens.profile
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.ui.components.ErrorView
+import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.theme.Primary
+import com.talentdafrique.app.ui.theme.PrimaryContainer
+import java.io.File
+import java.io.FileOutputStream
+
+@Composable
+fun ProfileScreen(
+    viewModel: ProfileViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val cvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return@rememberLauncherForActivityResult
+        val tempFile = File.createTempFile("cv_", ".pdf", context.cacheDir)
+        FileOutputStream(tempFile).use { output -> inputStream.copyTo(output) }
+        viewModel.uploadCv(tempFile)
+    }
+
+    when {
+        uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())
+
+        uiState.errorMessage != null && uiState.user == null -> ErrorView(
+            message = uiState.errorMessage ?: "",
+            onRetry = viewModel::loadProfile,
+            icon = Icons.Outlined.WifiOff,
+        )
+
+        else -> Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp),
+        ) {
+            // En-tÃªte avatar
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(shape = CircleShape, color = PrimaryContainer, modifier = Modifier.size(84.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = uiState.user?.nom?.take(1)?.uppercase() ?: "?",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Primary,
+                        )
+                    }
+                }
+                Text(
+                    text = uiState.user?.nom ?: "",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    text = uiState.user?.email ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            val etudiantProfile = uiState.profile as? ProfileDto.Etudiant
+
+            // Carte CV
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "Mon CV", style = MaterialTheme.typography.titleMedium)
+
+                    Text(
+                        text = if (etudiantProfile?.cvUrl != null) "CV envoyÃ© âœ“" else "Aucun CV envoyÃ© pour l'instant.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (etudiantProfile?.cvUrl != null) Primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
+
+                    uiState.cvUploadError?.let { message ->
+                        Text(text = message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+
+                    OutlinedButton(
+                        onClick = { cvPickerLauncher.launch("application/pdf") },
+                        enabled = !uiState.isUploadingCv,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (uiState.isUploadingCv) {
+                            androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                        } else {
+                            Text(if (etudiantProfile?.cvUrl != null) "Remplacer mon CV" else "Envoyer mon CV")
+                        }
+                    }
+                }
+            }
+
+            if (!etudiantProfile?.competences.isNullOrBlank() || !etudiantProfile?.disponibilite.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = "Mon profil", style = MaterialTheme.typography.titleMedium)
+
+                        if (!etudiantProfile?.competences.isNullOrBlank()) {
+                            Text(
+                                text = "CompÃ©tences",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                            Text(text = etudiantProfile?.competences ?: "", modifier = Modifier.padding(top = 2.dp))
+                        }
+
+                        if (!etudiantProfile?.disponibilite.isNullOrBlank()) {
+                            Text(
+                                text = "DisponibilitÃ©",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                            Text(text = etudiantProfile?.disponibilite ?: "", modifier = Modifier.padding(top = 2.dp))
+                        }
+                    }
+                }
+            }
+
+            TextButton(
+                onClick = viewModel::logout,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            ) {
+                Icon(imageVector = Icons.Outlined.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(text = "Se dÃ©connecter", modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\screens\profile\ProfileViewModel.kt =====
+
+package com.talentdafrique.app.ui.screens.profile
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.talentdafrique.app.data.remote.dto.ProfileDto
+import com.talentdafrique.app.data.remote.dto.UserDto
+import com.talentdafrique.app.data.repository.AuthRepository
+import com.talentdafrique.app.data.repository.CvRepository
+import com.talentdafrique.app.data.repository.ProfilesRepository
+import com.talentdafrique.app.data.repository.Result
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.io.File
+import javax.inject.Inject
+
+data class ProfileUiState(
+    val isLoading: Boolean = true,
+    val user: UserDto? = null,
+    val profile: ProfileDto? = null,
+    val errorMessage: String? = null,
+    val isUploadingCv: Boolean = false,
+    val cvUploadError: String? = null,
+)
+
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+    private val profilesRepository: ProfilesRepository,
+    private val cvRepository: CvRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        loadProfile()
+    }
+
+    fun loadProfile() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            when (val userResult = authRepository.me()) {
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = userResult.message)
+                    return@launch
+                }
+                is Result.Success -> {
+                    val user = userResult.data
+                    when (val profileResult = profilesRepository.getMyProfile(user.typeProfil)) {
+                        is Result.Success -> _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            user = user,
+                            profile = profileResult.data,
+                        )
+                        is Result.Error -> _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            user = user,
+                            errorMessage = profileResult.message,
+                        )
+                    }
+                }
+            }
+        }
+    }
+        fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
+        }
+    }
+
+    fun uploadCv(file: File) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUploadingCv = true, cvUploadError = null)
+            when (val result = cvRepository.uploadCv(file)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isUploadingCv = false)
+                    loadProfile()
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(isUploadingCv = false, cvUploadError = result.message)
+            }
+        }
+    }
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\theme\Color.kt =====
+
+package com.talentdafrique.app.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Palette primaire â€” vert/orange Ã©voquant l'Afrique, dynamique et chaleureux
+val Primary = Color(0xFF1B7A5C)
+val PrimaryLight = Color(0xFF4FA184)
+val PrimaryContainer = Color(0xFFD4F1E6)
+val OnPrimaryContainer = Color(0xFF002013)
+
+val Secondary = Color(0xFFE8792E)
+val SecondaryContainer = Color(0xFFFFE1CC)
+val OnSecondaryContainer = Color(0xFF3A1800)
+
+val Background = Color(0xFFFAFAF8)
+val Surface = Color(0xFFFFFFFF)
+val SurfaceVariant = Color(0xFFF0F0EC)
+val OnSurfaceVariant = Color(0xFF6B6F6A)
+
+val Error = Color(0xFFBA1A1A)
+val ErrorContainer = Color(0xFFFFDAD6)
+
+val Outline = Color(0xFFDDDED8)
+
+val ScoreHigh = Color(0xFF1B7A5C)
+val ScoreMedium = Color(0xFFE8792E)
+val ScoreLow = Color(0xFF8A8D87)
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\theme\Shape.kt =====
+
+package com.talentdafrique.app.ui.theme
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+val TalentShapes = Shapes(
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+)
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\theme\Theme.kt =====
+
+package com.talentdafrique.app.ui.theme
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+
+private val TalentColorScheme = lightColorScheme(
+    primary = Primary,
+    onPrimary = Surface,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
+    secondary = Secondary,
+    onSecondary = Surface,
+    secondaryContainer = SecondaryContainer,
+    onSecondaryContainer = OnSecondaryContainer,
+    background = Background,
+    onBackground = OnPrimaryContainer,
+    surface = Surface,
+    onSurface = OnPrimaryContainer,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    error = Error,
+    errorContainer = ErrorContainer,
+    outline = Outline,
+)
+
+@Composable
+fun TalentDAfriqueTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = TalentColorScheme,
+        typography = TalentTypography,
+        shapes = TalentShapes,
+        content = content,
+    )
+}
+
+
+===== FILE: C:\Lolo\talent-afrique\mobile\app\src\main\java\com\talentdafrique\app\ui\theme\Type.kt =====
+
+package com.talentdafrique.app.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+val TalentTypography = Typography(
+    headlineLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 36.sp),
+    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp),
+    headlineSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
+    titleSmall = TextStyle(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
+    bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
+    bodySmall = TextStyle(fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp),
+    labelLarge = TextStyle(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp),
+)

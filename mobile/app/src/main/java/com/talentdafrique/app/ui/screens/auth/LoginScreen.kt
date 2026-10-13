@@ -55,6 +55,7 @@ import com.talentdafrique.app.ui.theme.Forest40
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToForgot: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -168,6 +169,8 @@ fun LoginScreen(
                     Text("Se connecter", style = MaterialTheme.typography.titleSmall)
                 }
             }
+
+            androidx.compose.material3.TextButton(onClick = onNavigateToForgot, modifier = Modifier.fillMaxWidth()) { Text("Mot de passe oublié ?") }
 
             TextButton(
                 onClick = onNavigateToRegister,

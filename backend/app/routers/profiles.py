@@ -206,3 +206,20 @@ def statistiques_ecole(
             round((etudiants_places / total_etudiants) * 100, 1) if total_etudiants > 0 else 0
         ),
     }
+
+
+@router.get("/ecoles")
+def list_ecoles(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Liste des ecoles inscrites (pour qu'un etudiant choisisse son ecole)."""
+    ecoles = db.query(EcoleProfile).order_by(EcoleProfile.nom_etablissement).all()
+    return [
+        {
+            "id": str(e.id),
+            "nom_etablissement": e.nom_etablissement,
+            "localisation": e.localisation,
+        }
+        for e in ecoles
+    ]

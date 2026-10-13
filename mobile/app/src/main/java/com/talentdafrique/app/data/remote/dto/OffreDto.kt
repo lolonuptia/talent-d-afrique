@@ -36,6 +36,7 @@ data class OffreDto(
     // ce sont des champs plats, pas un sous-objet imbriqué.
     @Json(name = "score_global") val scoreGlobal: Double? = null,
     val recommandee: Boolean? = null,
+    @Json(name = "detail_score") val detailScore: Map<String, Double>? = null,
 )
 
 enum class StatutCandidature {
