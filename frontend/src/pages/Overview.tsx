@@ -26,7 +26,7 @@ export default function Overview() {
               <h2>Candidatures par statut</h2>
               {C.statutsCand.map((st) => (
                 <div key={st} style={{ display: "grid", gridTemplateColumns: "120px 1fr 30px", gap: 10, alignItems: "center", marginBottom: 6 }}>
-                  <span>{st.replace("_", " ")}</span>
+                  <span>{st.replaceAll("_", " ")}</span>
                   <div className="bar"><i style={{ width: all.length ? (100 * n(st)) / all.length + "%" : "0" }} /></div>
                   <span>{n(st)}</span>
                 </div>

@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +15,11 @@ from app.models.user import User
 from app.schemas.candidature import CandidatureCreate, CandidatureOut, CandidatureStatutUpdate
 from app.schemas.matching import CandidatureAvecScore
 from app.services.matching import calculer_score_matching
-from app.services.notifications import creer_notification, notifier_changement_statut, notifier_nouvelle_candidature
+from app.services.notifications import (
+    creer_notification,
+    notifier_changement_statut,
+    notifier_nouvelle_candidature,
+)
 
 router = APIRouter()
 

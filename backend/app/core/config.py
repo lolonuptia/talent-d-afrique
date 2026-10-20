@@ -3,8 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:password123@localhost:5432/talent_afrique"
-    database_url: str = "postgres:password123@localhost:5432/talent_afrique"
-    test_database_url: str = "postgres:password123@localhost:5432/talent_afrique_test"
+    test_database_url: str = "postgresql://password123@localhost:5432/talent_afrique_test"
     secret_key: str = "changeme-en-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
