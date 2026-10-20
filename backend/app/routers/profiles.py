@@ -1,6 +1,8 @@
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -37,6 +39,13 @@ PROFILE_CONFIG = {
     "freelance": (FreelanceProfile, FreelanceProfileOut),
 }
 
+PROFILE_IN = {
+    "entreprise": EntrepriseProfileIn,
+    "etudiant": EtudiantProfileIn,
+    "ecole": EcoleProfileIn,
+    "freelance": FreelanceProfileIn,
+}
+
 
 @router.get("/me")
 def get_my_profile(
@@ -56,14 +65,26 @@ def get_my_profile(
 
 @router.put("/me")
 def upsert_my_profile(
-    payload: EntrepriseProfileIn | EtudiantProfileIn | EcoleProfileIn | FreelanceProfileIn,
+    body: dict[str, Any] = Body(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     model, _ = PROFILE_CONFIG[current_user.type_profil]
     profile = db.query(model).filter(model.user_id == current_user.id).first()
 
-    data = payload.model_dump(exclude_unset=True)
+    try:
+        data = (
+            PROFILE_IN[current_user.type_profil].model_validate(body).model_dump(exclude_unset=True)
+        )
+    except ValidationError as exc:
+        erreurs = exc.errors(include_url=False, include_context=False)
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {"loc": ["body", *e["loc"]], "msg": e["msg"].removeprefix("Value error, ")}
+                for e in erreurs
+            ],
+        ) from exc
 
     if profile is None:
         profile = model(id=uuid.uuid4(), user_id=current_user.id, **data)

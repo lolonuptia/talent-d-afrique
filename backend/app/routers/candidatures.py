@@ -25,6 +25,7 @@ from app.services.notifications import (
     notifier_changement_statut,
     notifier_nouvelle_candidature,
 )
+from app.services.offres import expirer_offres_perimees
 
 router = APIRouter()
 
@@ -73,6 +74,8 @@ def create_candidature(
     offre = db.query(Offre).filter(Offre.id == payload.offre_id).first()
     if offre is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
+    expirer_offres_perimees(db)
+    db.refresh(offre)
     if offre.statut != "active":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

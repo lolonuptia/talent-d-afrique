@@ -1,9 +1,22 @@
+import re
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 DisponibiliteCandidat = Literal["immediate", "1_mois", "3_mois", "6_mois"]
+
+
+def _url_http(v: str | None) -> str | None:
+    """Accepte uniquement http(s) : refuse javascript:, data:, etc."""
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return None
+    if not re.match(r"^https?://\S+$", v, re.IGNORECASE):
+        raise ValueError("L'adresse doit commencer par http:// ou https://")
+    return v
 
 
 class EntrepriseProfileIn(BaseModel):
@@ -13,6 +26,8 @@ class EntrepriseProfileIn(BaseModel):
     taille: str | None = None
     culture: str | None = None
     localisation: str | None = None
+
+    _val_logo = field_validator("logo_url")(_url_http)
 
 
 class EntrepriseProfileOut(EntrepriseProfileIn):
@@ -71,6 +86,8 @@ class FreelanceProfileIn(BaseModel):
     visible_aux_entreprises: bool | None = None
     portfolio_url: str | None = None
     annees_experience: int | None = Field(default=None, ge=0)
+
+    _val_portfolio = field_validator("portfolio_url")(_url_http)
 
 
 class FreelanceProfileOut(BaseModel):

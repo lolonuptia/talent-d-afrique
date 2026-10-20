@@ -4,7 +4,7 @@ import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-rou
 import { list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
-import { Login, Register } from "./pages/Auth";
+import { ForgotPassword, Login, Register, ResetPassword } from "./pages/Auth";
 import Overview from "./pages/Overview";
 import { OffreForm, OffresList } from "./pages/Offres";
 import Candidats from "./pages/Candidats";
@@ -55,6 +55,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
         <Route path="/offres" element={<OffresList />} />

@@ -45,6 +45,16 @@ export function Compte() {
   const [eInfo, setEInfo] = useState<Error | null>(null);
   const [eExp, setEExp] = useState<Error | null>(null);
   const [eDel, setEDel] = useState<Error | null>(null);
+  const [pw, setPw] = useState({ ancien: "", nouveau: "" });
+  const [okPw, setOkPw] = useState("");
+  const [ePw, setEPw] = useState<Error | null>(null);
+  const savePw = async (ev: FormEvent) => {
+    ev.preventDefault(); setEPw(null); setOkPw("");
+    try {
+      await api("/auth/change-password", "POST", { ancien_mot_de_passe: pw.ancien, nouveau_mot_de_passe: pw.nouveau });
+      setPw({ ancien: "", nouveau: "" }); setOkPw("Mot de passe modifié");
+    } catch (x) { setEPw(x as Error); }
+  };
   const save = async (ev: FormEvent) => {
     ev.preventDefault(); setEInfo(null); setOk("");
     try { const u = await api("/users/me", "PATCH", f); setUser(u); setOk("Informations mises à jour"); } catch (x) { setEInfo(x as Error); }
@@ -72,6 +82,14 @@ export function Compte() {
           <Field label="Email"><input type="email" required value={f.email} onChange={(x) => setF({ ...f, email: x.target.value })} /></Field>
         </div>
         <Err e={eInfo} />{ok && <p className="ok">{ok}</p>}<button>Enregistrer</button>
+      </form>
+      <form className="card" onSubmit={savePw}>
+        <h2>Mot de passe</h2>
+        <div className="row">
+          <Field label="Mot de passe actuel"><input type="password" required value={pw.ancien} onChange={(x) => setPw({ ...pw, ancien: x.target.value })} /></Field>
+          <Field label="Nouveau mot de passe (8 caractères minimum)"><input type="password" required minLength={8} value={pw.nouveau} onChange={(x) => setPw({ ...pw, nouveau: x.target.value })} /></Field>
+        </div>
+        <Err e={ePw} />{okPw && <p className="ok">{okPw}</p>}<button>Changer le mot de passe</button>
       </form>
       <div className="card"><h2>Mes données</h2><p className="mut">Télécharge une copie de toutes les données de ton compte.</p><Err e={eExp} /><button className="ghost" onClick={exp}>Exporter mes données</button></div>
       <div className="card">

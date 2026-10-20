@@ -33,6 +33,7 @@ from app.routers import (
     talents,
     users,
 )
+from app.routers import password as password_router
 from app.routers import portfolio as portfolio_router
 from app.routers import profiles as profiles_router
 
@@ -55,6 +56,7 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(password_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(profiles_router.router, prefix="/api/profiles", tags=["profiles"])
 app.include_router(cv.router, prefix="/api/profiles", tags=["cv"])

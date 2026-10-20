@@ -12,6 +12,7 @@ from app.models.user import User
 from app.schemas.matching import OffreAvecScore
 from app.schemas.offre import OffreCreate, OffreOut, OffreUpdate
 from app.services.matching import calculer_score_matching
+from app.services.offres import expirer_offres_perimees
 
 router = APIRouter()
 
@@ -73,6 +74,7 @@ def list_offres(
     db: Session = Depends(get_db),
 ):
     """Liste publique des offres (pour les candidats) - filtrable par statut et type de contrat."""
+    expirer_offres_perimees(db)
     query = db.query(Offre)
     if statut:
         query = query.filter(Offre.statut == statut)
@@ -90,6 +92,7 @@ def list_my_offres(
 ):
     """Historique des offres de l'entreprise connectee (actives, expirees, archivees)."""
     entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    expirer_offres_perimees(db)
     return (
         db.query(Offre)
         .filter(Offre.entreprise_id == entreprise_profile.id)
@@ -127,6 +130,7 @@ def list_offres_recommandees(
             detail="Seuls les etudiants et freelances ont acces a des recommandations.",
         )
 
+    expirer_offres_perimees(db)
     offres_actives = db.query(Offre).filter(Offre.statut == "active").all()
 
     resultats = []
