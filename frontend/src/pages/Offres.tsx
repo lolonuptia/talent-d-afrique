@@ -1,13 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, C, coerce, list } from "../api";
-import { Async, Badge, Err, Field, Page, csv, fdate, useLoad } from "../ui";
+import { Async, Badge, Err, Field, Page, csv, dispoLabel, fdate, useLoad } from "../ui";
 
 export function OffresList() {
   const [st, setSt] = useState("");
   const [e, setE] = useState<Error | null>(null);
-  const s = useLoad(() => list("/offres/mine"));
-  const act = async (fn: () => Promise<any>) => { try { setE(null); await fn(); s.reload(); } catch (x) { setE(x as Error); } };
+  const s = useLoad(async () => {
+    const [offres, cands] = await Promise.all([list("/offres/mine"), list("/candidatures/recues").catch(() => [] as any[])]);
+    return { offres, cands };
+  });
+  const act = async (fn: () => Promise<unknown>) => { try { setE(null); await fn(); s.reload(); } catch (x) { setE(x as Error); } };
   return (
     <Page title="Mes offres" action={<Link className="btn" to="/offres/nouvelle">Publier une offre</Link>}>
       <div className="card">
@@ -17,19 +21,22 @@ export function OffresList() {
           </select>
         </Field>
         <Err e={e} />
-        <Async s={s}>{(list) => {
-          const l = list.filter((o) => !st || o.statut === st);
+        <Async s={s}>{({ offres, cands }) => {
+          const l = offres.filter((o: any) => !st || o.statut === st);
+          const nb = (id: string) => cands.filter((c: any) => c.offre_id === id).length;
           return l.length ? (
             <table>
-              <thead><tr><th>Titre</th><th>Contrat</th><th>Statut</th><th>Créée</th><th /></tr></thead>
-              <tbody>{l.map((o) => (
+              <thead><tr><th>Titre</th><th>Contrat</th><th>Statut</th><th>Candidats</th><th>Créée</th><th /></tr></thead>
+              <tbody>{l.map((o: any) => (
                 <tr key={o.id}>
-                  <td>{o.titre}</td><td>{o.type_contrat}</td><td><Badge v={o.statut} /></td><td>{fdate(o.created_at)}</td>
+                  <td>{o.titre}</td><td>{o.type_contrat}</td><td><Badge v={o.statut} /></td><td>{nb(o.id)}</td><td>{fdate(o.created_at)}</td>
                   <td className="actions">
                     <Link className="btn ghost" to={`/candidats?offre=${o.id}`}>Candidats</Link>
                     <Link className="btn ghost" to={`/offres/${o.id}/modifier`}>Modifier</Link>
-                    {o.statut !== "archivee" && <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", { statut: "archivee" }))}>Archiver</button>}
-                    <button className="danger" onClick={() => confirm("Supprimer cette offre ?") && act(() => api(`/offres/${o.id}`, "DELETE"))}>Supprimer</button>
+                    {o.statut === "active"
+                      ? <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", { statut: "archivee" }))}>Archiver</button>
+                      : <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", { statut: "active" }))}>Réactiver</button>}
+                    <button className="danger" onClick={() => confirm(nb(o.id) ? `Cette offre a ${nb(o.id)} candidature(s) liée(s). Supprimer quand même ? (Archiver est plus prudent.)` : "Supprimer cette offre ?") && act(() => api(`/offres/${o.id}`, "DELETE"))}>Supprimer</button>
                   </td>
                 </tr>
               ))}</tbody>
@@ -41,32 +48,37 @@ export function OffresList() {
   );
 }
 
-const empty = { titre: "", description: "", type_contrat: "stage", obl: "", sou: "", soft: "", niveau: "", disponibilite: "", localisation: "", remuneration: "", tjm: "", statut: "active" };
+const NIVEAUX: [string, string][] = [["", "Non précisé"], ["debutant", "Débutant"], ["junior", "Junior (0 à 2 ans)"], ["confirme", "Confirmé"], ["senior", "Senior (5 ans et +)"]];
+const empty: Record<string, string> = { titre: "", description: "", type_contrat: "stage", obl: "", sou: "", soft: "", niveau: "", disponibilite: "", localisation: "", remuneration: "", tjm: "", statut: "active" };
 
 export function OffreForm() {
   const { id } = useParams();
   const nav = useNavigate();
-  const [f, setF] = useState<any>(empty);
+  const [f, setF] = useState<Record<string, string>>(empty);
   const [e, setE] = useState<Error | null>(null);
-  const set = (k: string) => (x: any) => setF({ ...f, [k]: x.target.value });
+  const set = (k: string) => (x: { target: { value: string } }) => setF({ ...f, [k]: x.target.value });
 
   useEffect(() => {
     if (!id) return;
     api(`/offres/${id}`).then((o) => setF({
-      ...empty, ...o,
-      obl: (o.competences_obligatoires || []).join(", "), sou: (o.competences_souhaitees || []).join(", "),
-      soft: (o.soft_skills || []).join(", "), niveau: o.niveau_experience ?? "", tjm: o.budget_tjm ?? "",
-      disponibilite: o.disponibilite ?? "", localisation: o.localisation ?? "", remuneration: o.remuneration ?? "",
+      titre: o.titre ?? "", description: o.description ?? "", type_contrat: o.type_contrat, statut: o.statut,
+      obl: o.competences_obligatoires ?? "", sou: o.competences_souhaitees ?? "", soft: o.soft_skills ?? "",
+      niveau: o.niveau_experience ?? "", disponibilite: o.disponibilite ?? "", localisation: o.localisation ?? "",
+      remuneration: String(o.remuneration ?? ""), tjm: String(o.budget_tjm ?? ""),
     })).catch(setE);
   }, [id]);
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault(); setE(null);
-    const body: any = {
-      titre: f.titre, description: f.description, type_contrat: f.type_contrat,
-      competences_obligatoires: csv(f.obl), competences_souhaitees: csv(f.sou), soft_skills: csv(f.soft),
-      niveau_experience: coerce("OffreCreate", "niveau_experience", f.niveau),
-      disponibilite: coerce("OffreCreate", "disponibilite", f.disponibilite), localisation: coerce("OffreCreate", "localisation", f.localisation), remuneration: coerce("OffreCreate", "remuneration", f.remuneration),
+    const body: Record<string, unknown> = {
+      titre: f.titre.trim(), description: f.description, type_contrat: f.type_contrat,
+      competences_obligatoires: csv(f.obl).join(", ") || null,
+      competences_souhaitees: csv(f.sou).join(", ") || null,
+      soft_skills: csv(f.soft).join(", ") || null,
+      niveau_experience: f.niveau || null,
+      disponibilite: f.disponibilite || null,
+      localisation: f.localisation.trim() || null,
+      remuneration: coerce("OffreCreate", "remuneration", f.remuneration),
       budget_tjm: f.type_contrat === "mission" ? coerce("OffreCreate", "budget_tjm", f.tjm) : null,
     };
     if (id) body.statut = f.statut;
@@ -76,15 +88,24 @@ export function OffreForm() {
   return (
     <Page title={id ? "Modifier l'offre" : "Publier une offre"}>
       <form className="card" onSubmit={submit}>
-        <Field label="Titre"><input required value={f.titre} onChange={set("titre")} /></Field>
+        <Field label="Titre"><input required minLength={3} value={f.titre} onChange={set("titre")} /></Field>
         <Field label="Description"><textarea rows={5} required value={f.description} onChange={set("description")} /></Field>
         <div className="row">
           <Field label="Type de contrat"><select value={f.type_contrat} onChange={set("type_contrat")}>{C.contrats.map((v) => <option key={v}>{v}</option>)}</select></Field>
           {f.type_contrat === "mission" && <Field label="Budget TJM maximum"><input type="number" min={0} value={f.tjm} onChange={set("tjm")} /></Field>}
-          <Field label="Niveau d'expérience (années)"><input type="number" min={0} value={f.niveau} onChange={set("niveau")} /></Field>
-          <Field label="Disponibilité attendue"><input value={f.disponibilite} onChange={set("disponibilite")} /></Field>
+          <Field label="Niveau d'expérience">
+            <select value={f.niveau} onChange={set("niveau")}>
+              {NIVEAUX.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {f.niveau && !NIVEAUX.some(([v]) => v === f.niveau) && <option value={f.niveau}>{f.niveau}</option>}
+            </select>
+          </Field>
+          <Field label="Disponibilité attendue">
+            <select value={f.disponibilite} onChange={set("disponibilite")}>
+              <option value="">Non précisée</option>{C.dispos.map((v) => <option key={v} value={v}>{dispoLabel(v)}</option>)}
+            </select>
+          </Field>
           <Field label="Localisation"><input value={f.localisation} onChange={set("localisation")} /></Field>
-          <Field label="Rémunération"><input value={f.remuneration} onChange={set("remuneration")} /></Field>
+          <Field label="Rémunération"><input type="number" min={0} value={f.remuneration} onChange={set("remuneration")} /></Field>
           {id && <Field label="Statut"><select value={f.statut} onChange={set("statut")}>{C.statutsOffre.map((v) => <option key={v}>{v}</option>)}</select></Field>}
         </div>
         <Field label="Compétences obligatoires (séparées par des virgules)"><input value={f.obl} onChange={set("obl")} /></Field>

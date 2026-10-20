@@ -1,4 +1,6 @@
-import { NavLink, Navigate, Outlet, Route, Routes } from "react-router-dom";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect } from "react";
+import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
@@ -14,10 +16,20 @@ import { Compte, Profil } from "./pages/Compte";
 
 function Layout() {
   const { user, loading, logout } = useAuth();
-  const notifs = useLoad(() => list("/notifications").catch(() => []), [user?.id]);
+  const { pathname } = useLocation();
+  const notifs = useLoad(
+    () => (user ? list("/notifications").catch(() => [] as any[]) : Promise.resolve([] as any[])),
+    [user?.id, pathname],
+    30000
+  );
+  const { reload } = notifs;
+  useEffect(() => {
+    window.addEventListener("notifs", reload);
+    return () => window.removeEventListener("notifs", reload);
+  }, [reload]);
   if (loading) return <p style={{ padding: 24 }}>Chargement...</p>;
   if (!user) return <Navigate to="/login" replace />;
-  const unread = (notifs.data || []).filter((n) => !n.lue).length;
+  const unread = (notifs.data || []).filter((n: any) => !n.lue).length;
   const nav: [string, string][] = [
     ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"],
     ["/messages", "Messages"], ["/talents", "Talents"], ["/notifications", "Notifications"],
@@ -27,6 +39,7 @@ function Layout() {
     <div className="app">
       <aside className="side">
         <div className="logo">Talent d'Afrique</div>
+        <div className="who">{user.nom}</div>
         {nav.map(([to, l]) => (
           <NavLink key={to} to={to} end={to === "/"}>{l}{to === "/notifications" && unread > 0 && <span className="b">{unread}</span>}</NavLink>
         ))}
@@ -45,8 +58,8 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
         <Route path="/offres" element={<OffresList />} />
-        <Route path="/offres/nouvelle" element={<OffreForm />} />
-        <Route path="/offres/:id/modifier" element={<OffreForm />} />
+        <Route path="/offres/nouvelle" element={<OffreForm key="new" />} />
+        <Route path="/offres/:id/modifier" element={<OffreForm key="edit" />} />
         <Route path="/candidats" element={<Candidats />} />
         <Route path="/entretiens" element={<Entretiens />} />
         <Route path="/messages" element={<Messages />} />

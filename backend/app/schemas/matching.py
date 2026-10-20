@@ -12,3 +12,4 @@ class CandidatureAvecScore(CandidatureOut):
     score_global: float
     recommandee: bool
     detail_score: dict
+    candidat_nom: str | None = None

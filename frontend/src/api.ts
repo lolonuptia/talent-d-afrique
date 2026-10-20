@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 // Valeurs par défaut, remplacées au démarrage par celles du backend (voir initSpec).
@@ -6,6 +7,8 @@ export const C = {
   statutsOffre: ["active", "expiree", "archivee"],
   statutsCand: ["recue", "en_cours", "entretien", "refusee", "acceptee"],
   modes: ["visio", "presentiel", "telephone"],
+  statutsEntretien: ["planifie", "annule", "termine"],
+  dispos: ["immediate", "1_mois", "3_mois", "6_mois"],
 };
 
 let SPEC: any = null;
@@ -31,16 +34,20 @@ export const queryParams = (path: string): string[] =>
   (SPEC?.paths?.[path]?.get?.parameters || []).filter((p: any) => p.in === "query").map((p: any) => p.name);
 export const asList = (d: any): any[] => (Array.isArray(d) ? d : d?.items ?? d?.results ?? []);
 
-/** Lit le schéma du backend au démarrage : les listes de valeurs et les types viennent de l'API, rien n'est codé en dur. */
+/** Lit le schéma du backend au démarrage : les listes de valeurs et les types viennent de l'API. */
 export async function initSpec() {
   try {
     const r = await fetch(BASE.replace(/\/api\/?$/, "") + "/openapi.json");
-    SPEC = await r.json();
+    const j = await r.json();
+    if (!j?.components) throw new Error("schéma invalide");
+    SPEC = j;
     Object.assign(C, {
       contrats: enumOf("OffreCreate", "type_contrat", C.contrats),
       statutsOffre: enumOf("OffreUpdate", "statut", C.statutsOffre),
       statutsCand: enumOf("CandidatureStatutUpdate", "statut", C.statutsCand),
       modes: enumOf("EntretienCreate", "mode", C.modes),
+      statutsEntretien: enumOf("EntretienUpdate", "statut", C.statutsEntretien),
+      dispos: enumOf("OffreCreate", "disponibilite", C.dispos),
     });
   } catch { console.warn("Schéma de l'API indisponible : valeurs par défaut utilisées."); }
 }
@@ -51,6 +58,7 @@ export const setTokens = (a: string, r?: string) => { localStorage.setItem("acce
 export const clearTokens = () => { localStorage.removeItem("access"); localStorage.removeItem("refresh"); };
 
 function text(d: any, s: number): string {
+  if (s === 429) return "Trop de requêtes, réessaie dans une minute.";
   const x = d?.detail;
   if (typeof x === "string") return x;
   if (Array.isArray(x)) return x.map((e: any) => `${(e.loc || []).slice(1).join(".")} : ${e.msg}`).join(" | ");
@@ -67,16 +75,33 @@ function send(path: string, method: string, body?: unknown) {
   return fetch(BASE + path, { method, headers: h, body: b });
 }
 
+// Une seule tentative de rafraîchissement à la fois, partagée par toutes les requêtes en 401.
+let refreshing: Promise<boolean> | null = null;
+const refreshTokens = () =>
+  (refreshing ??= (async () => {
+    const r = localStorage.getItem("refresh");
+    if (!r) return false;
+    try {
+      const rr = await send("/auth/refresh", "POST", { refresh_token: r });
+      if (!rr.ok) return false;
+      const t = await rr.json();
+      setTokens(t.access_token, t.refresh_token);
+      return true;
+    } catch { return false; }
+  })().finally(() => { refreshing = null; }));
+
 export async function api<T = any>(path: string, method = "GET", body?: unknown): Promise<T> {
-  let res = await send(path, method, body);
-  const r = localStorage.getItem("refresh");
-  if (res.status === 401 && r && !path.startsWith("/auth/")) {
-    const rr = await send("/auth/refresh", "POST", { refresh_token: r });
-    if (rr.ok) { const t = await rr.json(); setTokens(t.access_token, t.refresh_token); res = await send(path, method, body); }
-    else clearTokens();
+  const call = async () => {
+    try { return await send(path, method, body); }
+    catch { throw new ApiError("Serveur injoignable. Réessaie dans un instant."); }
+  };
+  let res = await call();
+  if (res.status === 401 && localStorage.getItem("refresh") && !/^\/auth\/(login|register|refresh)/.test(path)) {
+    if (await refreshTokens()) res = await call();
+    else { clearTokens(); window.dispatchEvent(new Event("session-expired")); }
   }
   const raw = await res.text();
-  let data: any = null;
+  let data: any;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
   if (!res.ok) { const e = new ApiError(text(data, res.status)); e.status = res.status; throw e; }
   return data as T;

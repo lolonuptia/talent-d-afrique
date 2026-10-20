@@ -12,7 +12,12 @@ from app.models.message import Message
 from app.models.offre import Offre
 from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
 from app.models.user import User
-from app.schemas.candidature import CandidatureCreate, CandidatureOut, CandidatureStatutUpdate
+from app.schemas.candidature import (
+    CandidatureCreate,
+    CandidatureOut,
+    CandidatureRecue,
+    CandidatureStatutUpdate,
+)
 from app.schemas.matching import CandidatureAvecScore
 from app.services.matching import calculer_score_matching
 from app.services.notifications import (
@@ -112,6 +117,45 @@ def list_my_candidatures(
     )
 
 
+@router.get("/recues", response_model=list[CandidatureRecue])
+def list_candidatures_recues(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dashboard entreprise : toutes les candidatures recues, toutes offres confondues."""
+    if current_user.type_profil != "entreprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seule une entreprise peut effectuer cette action.",
+        )
+    profil = (
+        db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == current_user.id).first()
+    )
+    if profil is None:
+        return []
+    lignes = (
+        db.query(Candidature, Offre, User)
+        .join(Offre, Offre.id == Candidature.offre_id)
+        .join(User, User.id == Candidature.candidat_id)
+        .filter(Offre.entreprise_id == profil.id)
+        .order_by(Candidature.created_at.desc())
+        .all()
+    )
+    return [
+        CandidatureRecue(
+            id=c.id,
+            offre_id=c.offre_id,
+            candidat_id=c.candidat_id,
+            message=c.message,
+            statut=c.statut,
+            created_at=c.created_at,
+            offre_titre=o.titre,
+            candidat_nom=u.nom,
+        )
+        for c, o, u in lignes
+    ]
+
+
 @router.get("/offre/{offre_id}", response_model=list[CandidatureOut])
 def list_candidatures_for_offre(
     offre_id: uuid.UUID,
@@ -202,6 +246,7 @@ def list_candidatures_classees(
                 score_global=matching["score_global"],
                 recommandee=matching["recommandee"],
                 detail_score=matching["detail"],
+                candidat_nom=candidat.nom,
             )
         )
 

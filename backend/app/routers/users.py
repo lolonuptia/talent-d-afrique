@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -20,6 +21,16 @@ def update_current_user(
     if payload.nom is not None:
         current_user.nom = payload.nom
     if payload.email is not None:
+        deja = (
+            db.query(User)
+            .filter(func.lower(User.email) == payload.email.lower(), User.id != current_user.id)
+            .first()
+        )
+        if deja is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cet email est deja utilise.",
+            )
         current_user.email = payload.email
 
     db.commit()

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, clearTokens, enumOf, setTokens } from "./api";
 
@@ -17,11 +18,20 @@ function check(u: any) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !!localStorage.getItem("access"));
 
   useEffect(() => {
-    if (!localStorage.getItem("access")) { setLoading(false); return; }
-    api("/auth/me").then((u) => { check(u); setUser(u); }).catch(() => clearTokens()).finally(() => setLoading(false));
+    if (!localStorage.getItem("access")) return;
+    api("/auth/me")
+      .then((u) => { check(u); setUser(u); })
+      .catch((x) => { if (x?.status === 401 || x?.status === 403) clearTokens(); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const h = () => setUser(null);
+    window.addEventListener("session-expired", h);
+    return () => window.removeEventListener("session-expired", h);
   }, []);
 
   const login = async (email: string, mot_de_passe: string) => {
@@ -38,5 +48,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { await api("/auth/logout", "POST", { refresh_token: localStorage.getItem("refresh") }); } catch { /* ignore */ }
     clearTokens(); setUser(null);
   };
-  return <Ctx.Provider value={{ user, loading, login, register, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, setUser, loading, login, register, logout }}>{children}</Ctx.Provider>;
 }
