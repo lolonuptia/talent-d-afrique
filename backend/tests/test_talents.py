@@ -39,7 +39,10 @@ def _entreprise(client):
 def test_talents_visible_sans_email(client):
     h_etu = _login(client, _data("etudiant", "etu@example.com", "Aminata"))
     _profil(
-        client, h_etu, competences="Python, SQL", disponibilite="immediate",
+        client,
+        h_etu,
+        competences="Python, SQL",
+        disponibilite="immediate",
         visible_aux_entreprises=True,
     )
     h_ent = _entreprise(client)
@@ -90,12 +93,20 @@ def test_talents_filtres_tjm_et_disponibilite(client):
 
     h_f1 = _login(client, _data("freelance", "f1@example.com", "Freelance Pas Cher"))
     _profil(
-        client, h_f1, competences="Python", tjm=150, disponibilite="immediate",
+        client,
+        h_f1,
+        competences="Python",
+        tjm=150,
+        disponibilite="immediate",
         visible_aux_entreprises=True,
     )
     h_f2 = _login(client, _data("freelance", "f2@example.com", "Freelance Cher"))
     _profil(
-        client, h_f2, competences="Python", tjm=400, disponibilite="3_mois",
+        client,
+        h_f2,
+        competences="Python",
+        tjm=400,
+        disponibilite="3_mois",
         visible_aux_entreprises=True,
     )
     h_ent = _entreprise(client)
@@ -127,9 +138,7 @@ def test_talents_pagination(client):
 
 def test_talents_synonymes_de_competences(client):
     h_etu = _login(client, _data("etudiant", "etu@example.com", "Dev Web"))
-    _profil(
-        client, h_etu, competences="JavaScript, React", visible_aux_entreprises=True
-    )
+    _profil(client, h_etu, competences="JavaScript, React", visible_aux_entreprises=True)
     h_ent = _entreprise(client)
 
     # "js" est un synonyme de JavaScript

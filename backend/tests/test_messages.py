@@ -1,4 +1,5 @@
 """Tests de la messagerie (par candidature)."""
+
 import uuid
 
 from app.models.notification import Notification

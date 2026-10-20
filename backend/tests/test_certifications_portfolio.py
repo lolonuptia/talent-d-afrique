@@ -1,4 +1,5 @@
 """Tests des certifications, du portfolio et du detail d'un talent."""
+
 import uuid
 
 

@@ -1,4 +1,5 @@
 """Tests de la planification des entretiens."""
+
 from datetime import datetime, timedelta
 
 from app.models.notification import Notification
@@ -77,9 +78,11 @@ def test_planifier_entretien_cycle_complet(client, db_session):
     assert mine[0]["statut"] == "entretien"
 
     # le talent est notifie
-    nb = db_session.query(Notification).filter(
-        Notification.type_evenement == "entretien_planifie"
-    ).count()
+    nb = (
+        db_session.query(Notification)
+        .filter(Notification.type_evenement == "entretien_planifie")
+        .count()
+    )
     assert nb == 1
 
     # les deux parties voient l'entretien
@@ -99,9 +102,11 @@ def test_entretien_annulation_et_filtre(client, db_session):
     r = client.patch(f"/api/entretiens/{e_id}", headers=h_ent, json={"statut": "annule"})
     assert r.status_code == 200 and r.json()["statut"] == "annule"
 
-    nb = db_session.query(Notification).filter(
-        Notification.type_evenement == "entretien_annule"
-    ).count()
+    nb = (
+        db_session.query(Notification)
+        .filter(Notification.type_evenement == "entretien_annule")
+        .count()
+    )
     assert nb == 1
     assert client.get("/api/entretiens?statut=planifie", headers=h_ent).json() == []
     assert len(client.get("/api/entretiens?statut=annule", headers=h_ent).json()) == 1
@@ -117,9 +122,11 @@ def test_entretien_report_notifie(client, db_session):
 
     r = client.patch(f"/api/entretiens/{e_id}", headers=h_ent, json={"date_heure": _futur(5)})
     assert r.status_code == 200, r.text
-    nb = db_session.query(Notification).filter(
-        Notification.type_evenement == "entretien_modifie"
-    ).count()
+    nb = (
+        db_session.query(Notification)
+        .filter(Notification.type_evenement == "entretien_modifie")
+        .count()
+    )
     assert nb == 1
 
 
