@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.candidature import Candidature
+from app.models.entretien import Entretien
+from app.models.message import Message
 from app.models.offre import Offre
 from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
 from app.models.user import User
