@@ -2,7 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+def _normaliser_email(v):
+    return v.strip().lower() if isinstance(v, str) else v
 
 
 class UserCreate(BaseModel):
@@ -13,15 +17,21 @@ class UserCreate(BaseModel):
     consentement: bool
     consent_version: str
 
+    _norm_email = field_validator("email", mode="before")(_normaliser_email)
+
 
 class UserLogin(BaseModel):
     email: EmailStr
     mot_de_passe: str
 
+    _norm_email = field_validator("email", mode="before")(_normaliser_email)
+
 
 class UserUpdate(BaseModel):
     nom: str | None = Field(default=None, min_length=2)
     email: EmailStr | None = None
+
+    _norm_email = field_validator("email", mode="before")(_normaliser_email)
 
 
 class UserOut(BaseModel):

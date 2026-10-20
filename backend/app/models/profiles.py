@@ -36,9 +36,7 @@ class EtudiantProfile(Base):
     formations = Column(Text, nullable=True)
     disponibilite = Column(String, nullable=True)  # ex: "immediate", "3 mois"
     preferences = Column(Text, nullable=True)
-    visible_aux_entreprises = Column(
-        Boolean, nullable=False, default=False, server_default=false()
-    )
+    visible_aux_entreprises = Column(Boolean, nullable=False, default=False, server_default=false())
 
     user = relationship("User")
     ecole = relationship("EcoleProfile", back_populates="etudiants")
@@ -69,8 +67,6 @@ class FreelanceProfile(Base):
     disponibilite = Column(String, nullable=True)
     portfolio_url = Column(String, nullable=True)
     annees_experience = Column(Integer, nullable=True)
-    visible_aux_entreprises = Column(
-        Boolean, nullable=False, default=False, server_default=false()
-    )
+    visible_aux_entreprises = Column(Boolean, nullable=False, default=False, server_default=false())
 
     user = relationship("User")

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.candidature import Candidature
 from app.models.offre import Offre
 from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
 from app.models.user import User
@@ -190,6 +191,12 @@ def delete_offre(
 ):
     entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
     offre = _get_owned_offre_or_404(offre_id, entreprise_profile.id, db)
+
+    if db.query(Candidature).filter(Candidature.offre_id == offre_id).first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette offre a des candidatures : archivez-la plutot que de la supprimer.",
+        )
 
     db.delete(offre)
     db.commit()

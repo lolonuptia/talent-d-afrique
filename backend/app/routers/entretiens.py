@@ -112,8 +112,7 @@ def planifier_entretien(
         db,
         candidature.candidat,
         "Entretien planifie",
-        f"Un entretien a ete planifie pour l'offre {candidature.offre.titre} "
-        f"le {_quand(quand)}.",
+        f"Un entretien a ete planifie pour l'offre {candidature.offre.titre} le {_quand(quand)}.",
         "entretien_planifie",
     )
     return entretien
@@ -175,6 +174,18 @@ def modifier_entretien(
     deja_annule = entretien.statut == "annule"
     for cle, valeur in data.items():
         setattr(entretien, cle, valeur)
+    if entretien.statut == "annule" and not deja_annule and candidature.statut == "entretien":
+        autre = (
+            db.query(Entretien)
+            .filter(
+                Entretien.candidature_id == candidature.id,
+                Entretien.id != entretien.id,
+                Entretien.statut == "planifie",
+            )
+            .first()
+        )
+        if autre is None:
+            candidature.statut = "en_cours"
     db.commit()
     db.refresh(entretien)
 

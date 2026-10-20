@@ -105,6 +105,7 @@ def search_talents(
     resultats.sort(key=lambda t: t.nom.lower())
     return resultats[offset : offset + limit]
 
+
 @router.get("/{profile_id}", response_model=TalentDetailOut)
 def get_talent(
     profile_id: uuid.UUID,

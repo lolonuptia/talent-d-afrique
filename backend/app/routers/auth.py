@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -54,7 +55,7 @@ def register(
             detail="Le consentement aux CGU est obligatoire.",
         )
 
-    existing_user = db.query(User).filter(User.email == payload.email).first()
+    existing_user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -87,7 +88,7 @@ def register(
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(request: Request, response: Response, payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
 
     if not user or not verify_password(payload.mot_de_passe, user.mot_de_passe_hash):
         raise HTTPException(
