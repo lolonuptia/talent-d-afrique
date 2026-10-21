@@ -10,7 +10,7 @@ const norm = (s: any) => String(s ?? "").toLowerCase().normalize("NFD").replace(
 const typeEntreprise = () => enumOf("UserCreate", "type_profil", ["entreprise"]).find((v) => norm(v) === "entreprise") ?? "entreprise";
 
 function check(u: any) {
-  if (norm(u?.type_profil) === "entreprise") return;
+  if (u?.is_admin || norm(u?.type_profil) === "entreprise") return;
   clearTokens();
   throw new Error(norm(u?.type_profil) === "etudiant"
     ? "Les étudiants utilisent l'application mobile Talent d'Afrique."

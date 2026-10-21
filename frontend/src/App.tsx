@@ -14,10 +14,16 @@ import Talents from "./pages/Talents";
 import Notifications from "./pages/Notifications";
 import { Compte, Profil } from "./pages/Compte";
 import { Cgu, Confidentialite } from "./pages/Legal";
+import { AdminHome, AdminJournal, AdminOffres, AdminUsers } from "./pages/Admin";
+
+const ADMIN_NAV: [string, string][] = [
+  ["/admin", "Tableau de bord"], ["/admin/utilisateurs", "Utilisateurs"], ["/admin/offres", "Offres"],
+  ["/admin/journal", "Journal"], ["/compte", "Mon compte"],
+];
 
 function VerifBanner({ user }: { user: any }) {
   const [msg, setMsg] = useState("");
-  if (user.email_verifie !== false) return null;
+  if (user.email_verifie !== false || user.is_admin) return null;
   const renvoyer = async () => {
     try { await api("/auth/resend-verification", "POST"); setMsg("Lien renvoyé : regarde ta boîte mail (et les courriers indésirables)."); }
     catch (x) { setMsg((x as Error).message); }
@@ -45,8 +51,10 @@ function Layout() {
   }, [reload]);
   if (loading) return <p style={{ padding: 24 }}>Chargement...</p>;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.is_admin && pathname !== "/compte" && !pathname.startsWith("/admin")) return <Navigate to="/admin" replace />;
+  if (!user.is_admin && pathname.startsWith("/admin")) return <Navigate to="/" replace />;
   const unread = (notifs.data || []).filter((n: any) => !n.lue).length;
-  const nav: [string, string][] = [
+  const nav: [string, string][] = user.is_admin ? ADMIN_NAV : [
     ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"],
     ["/messages", "Messages"], ["/talents", "Talents"], ["/notifications", "Notifications"],
     ["/profil", "Profil entreprise"], ["/compte", "Mon compte"],
@@ -98,6 +106,10 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profil" element={<Profil />} />
         <Route path="/compte" element={<Compte />} />
+        <Route path="/admin" element={<AdminHome />} />
+        <Route path="/admin/utilisateurs" element={<AdminUsers />} />
+        <Route path="/admin/offres" element={<AdminOffres />} />
+        <Route path="/admin/journal" element={<AdminJournal />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

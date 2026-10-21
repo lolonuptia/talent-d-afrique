@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class AdminLogOut(BaseModel):
     id: uuid.UUID
     admin_id: uuid.UUID
+    admin_nom: str | None = None
     action: str
     cible_type: str
     cible_id: str
@@ -27,3 +28,5 @@ class StatistiquesGlobales(BaseModel):
     total_offres: int
     total_candidatures: int
     taux_matching_moyen: float
+    comptes_suspendus: int = 0
+    entreprises_non_verifiees: int = 0
