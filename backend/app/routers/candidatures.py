@@ -1,15 +1,20 @@
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.candidature import Candidature
+from app.models.certification import Certification
 from app.models.entretien import Entretien
 from app.models.message import Message
 from app.models.offre import Offre
+from app.models.portfolio import PortfolioItem
 from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
 from app.models.user import User
 from app.schemas.candidature import (
@@ -19,6 +24,7 @@ from app.schemas.candidature import (
     CandidatureStatutUpdate,
 )
 from app.schemas.matching import CandidatureAvecScore
+from app.schemas.talent import CandidatDetailOut
 from app.services.matching import calculer_score_matching
 from app.services.notifications import (
     creer_notification,
@@ -140,7 +146,7 @@ def list_candidatures_recues(
         db.query(Candidature, Offre, User)
         .join(Offre, Offre.id == Candidature.offre_id)
         .join(User, User.id == Candidature.candidat_id)
-        .filter(Offre.entreprise_id == profil.id)
+        .filter(Offre.entreprise_id == profil.id, User.deleted_at.is_(None))
         .order_by(Candidature.created_at.desc())
         .all()
     )
@@ -202,6 +208,8 @@ def list_candidatures_classees(
     resultats = []
     for candidature in candidatures:
         candidat = candidature.candidat
+        if candidat.deleted_at is not None:
+            continue
         candidat_tjm = None
 
         if candidat.type_profil == "etudiant":
@@ -257,6 +265,83 @@ def list_candidatures_classees(
     return resultats
 
 
+def _candidature_de_mon_entreprise(
+    candidature_id: uuid.UUID, current_user: User, db: Session
+) -> Candidature:
+    candidature = db.query(Candidature).filter(Candidature.id == candidature_id).first()
+    if candidature is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidature introuvable."
+        )
+    _get_offre_owned_by_current_entreprise(candidature.offre_id, current_user, db)
+    if candidature.candidat.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidat introuvable.")
+    return candidature
+
+
+@router.get("/{candidature_id}/candidat", response_model=CandidatDetailOut)
+def voir_profil_candidat(
+    candidature_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dashboard entreprise : profil complet d'un candidat (jamais son email)."""
+    candidature = _candidature_de_mon_entreprise(candidature_id, current_user, db)
+    candidat = candidature.candidat
+    modele = EtudiantProfile if candidat.type_profil == "etudiant" else FreelanceProfile
+    profil = db.query(modele).filter(modele.user_id == candidat.id).first()
+
+    def champ(nom: str):
+        return getattr(profil, nom, None) if profil is not None else None
+
+    certifications = (
+        db.query(Certification)
+        .filter(Certification.user_id == candidat.id)
+        .order_by(Certification.created_at.desc())
+        .all()
+    )
+    portfolio = (
+        db.query(PortfolioItem)
+        .filter(PortfolioItem.user_id == candidat.id)
+        .order_by(PortfolioItem.created_at.desc())
+        .all()
+    )
+    competences = [c.strip() for c in (champ("competences") or "").split(",") if c.strip()]
+    return CandidatDetailOut(
+        profile_id=profil.id if profil is not None else candidat.id,
+        type_profil=candidat.type_profil,
+        nom=candidat.nom,
+        competences=competences,
+        disponibilite=champ("disponibilite"),
+        formations=champ("formations"),
+        experiences=champ("experiences"),
+        tjm=champ("tjm"),
+        annees_experience=champ("annees_experience"),
+        portfolio_url=champ("portfolio_url"),
+        certifications=certifications,
+        portfolio=portfolio,
+        a_un_cv=(Path(settings.cv_storage_dir) / f"{candidat.id}.pdf").is_file(),
+    )
+
+
+@router.get("/{candidature_id}/cv")
+def voir_cv_candidat(
+    candidature_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dashboard entreprise : CV (PDF) du candidat, uniquement pour ses propres offres."""
+    candidature = _candidature_de_mon_entreprise(candidature_id, current_user, db)
+    chemin = Path(settings.cv_storage_dir) / f"{candidature.candidat_id}.pdf"
+    if not chemin.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aucun CV depose.")
+    return FileResponse(
+        chemin,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="cv.pdf"'},
+    )
+
+
 @router.patch("/{candidature_id}/statut", response_model=CandidatureOut)
 def update_candidature_statut(
     candidature_id: uuid.UUID,
@@ -272,7 +357,15 @@ def update_candidature_statut(
 
     _get_offre_owned_by_current_entreprise(candidature.offre_id, current_user, db)
 
+    if payload.statut == candidature.statut:
+        return candidature  # rien ne change : pas de notification inutile
+
     candidature.statut = payload.statut
+    if payload.statut in ("refusee", "acceptee"):
+        # une candidature cloturee n'a plus d'entretien a venir
+        db.query(Entretien).filter(
+            Entretien.candidature_id == candidature.id, Entretien.statut == "planifie"
+        ).update({Entretien.statut: "annule"}, synchronize_session=False)
     db.commit()
     db.refresh(candidature)
 

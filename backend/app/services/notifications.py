@@ -1,4 +1,7 @@
+import threading
 import uuid
+from html import escape
+from types import SimpleNamespace
 
 import resend
 from sqlalchemy.orm import Session
@@ -33,7 +36,7 @@ def creer_notification(
     return notification
 
 
-def envoyer_email_notification(destinataire: User, sujet: str, contenu_html: str) -> None:
+def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> None:
     """Envoie un email via Resend. Echoue silencieusement (log uniquement) si la
     cle API n'est pas configuree ou si Resend est indisponible - ne doit jamais
     bloquer le reste de l'application."""
@@ -54,6 +57,14 @@ def envoyer_email_notification(destinataire: User, sujet: str, contenu_html: str
         print(f"[ERREUR ENVOI EMAIL] {destinataire.email} : {exc}")
 
 
+def envoyer_email_notification(destinataire: User, sujet: str, contenu_html: str) -> None:
+    """Envoie l'email en arriere-plan : la requete HTTP n'attend jamais le fournisseur."""
+    cible = SimpleNamespace(email=destinataire.email)
+    threading.Thread(
+        target=_envoyer_email_sync, args=(cible, sujet, contenu_html), daemon=True
+    ).start()
+
+
 def notifier_nouvelle_candidature(db: Session, entreprise_user: User, offre_titre: str) -> None:
     creer_notification(
         db,
@@ -64,7 +75,7 @@ def notifier_nouvelle_candidature(db: Session, entreprise_user: User, offre_titr
     )
     contenu = (
         f"<p>Vous avez reçu une nouvelle candidature pour l'offre "
-        f"<strong>{offre_titre}</strong>.</p>"
+        f"<strong>{escape(offre_titre)}</strong>.</p>"
     )
     envoyer_email_notification(
         entreprise_user,
@@ -77,8 +88,9 @@ def notifier_changement_statut(
     db: Session, candidat_user: User, offre_titre: str, nouveau_statut: str
 ) -> None:
     libelles = {
+        "recue": "est de nouveau en attente d'examen",
         "en_cours": "est en cours d'examen",
-        "entretien": "vous a été proposé un entretien",
+        "entretien": "passe à l'étape entretien, l'entreprise vous contactera bientôt",
         "refusee": "n'a pas été retenue",
         "acceptee": "a été acceptée",
     }
@@ -91,7 +103,7 @@ def notifier_changement_statut(
         message=f"Votre candidature pour « {offre_titre} » {libelle}.",
         type_evenement="statut_change",
     )
-    contenu = f"<p>Votre candidature pour <strong>{offre_titre}</strong> {libelle}.</p>"
+    contenu = f"<p>Votre candidature pour <strong>{escape(offre_titre)}</strong> {libelle}.</p>"
     envoyer_email_notification(
         candidat_user,
         sujet="Mise à jour de votre candidature",

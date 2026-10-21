@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from "react";
-import { NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
@@ -13,6 +13,7 @@ import Messages from "./pages/Messages";
 import Talents from "./pages/Talents";
 import Notifications from "./pages/Notifications";
 import { Compte, Profil } from "./pages/Compte";
+import { Cgu, Confidentialite } from "./pages/Legal";
 
 function Layout() {
   const { user, loading, logout } = useAuth();
@@ -50,12 +51,24 @@ function Layout() {
   );
 }
 
+function NotFound() {
+  return (
+    <div className="auth">
+      <h1 style={{ marginBottom: 16 }}>Page introuvable</h1>
+      <p className="mut">Cette adresse n'existe pas.</p>
+      <Link className="btn" to="/">Retour à l'accueil</Link>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/cgu" element={<Cgu />} />
+      <Route path="/confidentialite" element={<Confidentialite />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
@@ -70,7 +83,7 @@ export default function App() {
         <Route path="/profil" element={<Profil />} />
         <Route path="/compte" element={<Compte />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

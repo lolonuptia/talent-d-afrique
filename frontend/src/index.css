@@ -29,3 +29,4 @@ input,select,textarea{width:100%;padding:8px 10px;border:1px solid #b9c4be;borde
 .auth{max-width:400px;margin:8vh auto;padding:0 16px}.mut{color:var(--mut)}.actions{display:flex;gap:6px;flex-wrap:wrap}
 @media(max-width:800px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.chat{grid-template-columns:1fr}.main{padding:16px}}
 .side .who{color:#9dc0b2;font-size:13px;padding:0 10px 14px;margin-top:-10px}
+.card{overflow-x:auto}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}

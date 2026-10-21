@@ -113,3 +113,18 @@ export const qs = (o: Record<string, any>) => {
   const s = new URLSearchParams(Object.entries(o).filter(([, v]) => v !== "" && v != null) as [string, string][]).toString();
   return s ? "?" + s : "";
 };
+
+/** Ouvre un fichier protégé (CV) dans un nouvel onglet, en envoyant le jeton d'accès. */
+export async function openFile(path: string) {
+  const w = window.open("", "_blank");
+  try {
+    let res = await send(path, "GET");
+    if (res.status === 401 && (await refreshTokens())) res = await send(path, "GET");
+    if (!res.ok) throw new ApiError(res.status === 404 ? "Aucun CV déposé." : `Erreur ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    if (w) w.location.href = url; else window.location.href = url;
+  } catch (x) {
+    w?.close();
+    throw x;
+  }
+}

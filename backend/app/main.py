@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.core.checks import verifier_configuration_production
 from app.core.config import settings
 from app.core.database import engine  # noqa: F401
 from app.core.limiter import limiter
@@ -36,6 +37,8 @@ from app.routers import (
 from app.routers import password as password_router
 from app.routers import portfolio as portfolio_router
 from app.routers import profiles as profiles_router
+
+verifier_configuration_production(settings)
 
 app = FastAPI(
     title="Talent d'Afrique API",

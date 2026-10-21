@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from html import escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -69,7 +70,7 @@ def _notifier(db: Session, candidat: User, titre: str, message: str, evenement: 
         message=message,
         type_evenement=evenement,
     )
-    envoyer_email_notification(candidat, titre, f"<p>{message}</p>")
+    envoyer_email_notification(candidat, titre, f"<p>{escape(message)}</p>")
 
 
 def _quand(dt: datetime) -> str:

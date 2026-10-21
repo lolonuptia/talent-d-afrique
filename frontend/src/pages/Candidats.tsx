@@ -3,6 +3,7 @@ import { Fragment, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, C, list as getList, qs } from "../api";
 import { Async, Err, Field, Page, dispoLabel, useLoad } from "../ui";
+import CandidatProfil from "./CandidatProfil";
 
 const LAB: Record<string, string> = {
   competences_obligatoires: "Compétences obligatoires", competences_souhaitees: "Compétences souhaitées",
@@ -16,6 +17,7 @@ export default function Candidats() {
   const [scoreIn, setScoreIn] = useState("");
   const timer = useRef<number | undefined>(undefined);
   const [open, setOpen] = useState<string | null>(null);
+  const [prof, setProf] = useState<string | null>(null);
   const [e, setE] = useState<Error | null>(null);
   const offres = useLoad(() => getList("/offres/mine"));
   const rows = useLoad(
@@ -66,11 +68,13 @@ export default function Candidats() {
                     <td><b>{Math.round(c.score_global)}</b>/100<div className="bar"><i style={{ width: c.score_global + "%" }} /></div></td>
                     <td><select value={c.statut} onChange={(x) => setStatut(c.id, x.target.value)}>{C.statutsCand.map((v) => <option key={v} value={v}>{v.replace(/_/g, " ")}</option>)}</select></td>
                     <td className="actions">
+                      <button className="ghost" onClick={() => setProf(prof === c.id ? null : c.id)}>Profil</button>
                       <button className="ghost" onClick={() => setOpen(open === c.id ? null : c.id)}>Détail du score</button>
                       <Link className="btn ghost" to={`/entretiens?cand=${c.id}`}>Entretien</Link>
                       <Link className="btn ghost" to={`/messages?c=${c.id}`}>Écrire</Link>
                     </td>
                   </tr>
+                  {prof === c.id && <tr><td /><td colSpan={4}><CandidatProfil id={c.id} /></td></tr>}
                   {open === c.id && <tr><td /><td colSpan={4}>{Object.entries(c.detail_score || {}).map(([k, v]) => (
                     <div key={k} style={{ display: "grid", gridTemplateColumns: "220px 1fr 40px", gap: 10, alignItems: "center", marginBottom: 4 }}>
                       <span>{LAB[k] ?? k.replace(/_/g, " ")}</span><div className="bar"><i style={{ width: Number(v) + "%" }} /></div><span>{Math.round(Number(v))}</span>

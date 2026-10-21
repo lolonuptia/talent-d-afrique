@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, clearTokens, enumOf, setTokens } from "./api";
 
+const CONSENT_VERSION = "2026-09-06";
 const Ctx = createContext<any>(null);
 export const useAuth = () => useContext(Ctx);
 
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(t.user);
   };
   const register = async (b: { nom: string; email: string; mot_de_passe: string }) => {
-    await api("/auth/register", "POST", { ...b, type_profil: typeEntreprise(), consentement: true, consent_version: "1.0" });
+    await api("/auth/register", "POST", { ...b, type_profil: typeEntreprise(), consentement: true, consent_version: CONSENT_VERSION });
     await login(b.email, b.mot_de_passe);
   };
   const logout = async () => {

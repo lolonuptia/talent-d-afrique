@@ -24,3 +24,10 @@ class TalentOut(BaseModel):
 class TalentDetailOut(TalentOut):
     certifications: list[CertificationOut] = []
     portfolio: list[PortfolioItemOut] = []
+
+
+class CandidatDetailOut(TalentDetailOut):
+    """Profil d'un candidat vu par l'entreprise a laquelle il a postule : jamais d'email."""
+
+    experiences: str | None = None
+    a_un_cv: bool = False

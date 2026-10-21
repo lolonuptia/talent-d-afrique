@@ -36,6 +36,7 @@ export function OffresList() {
                     {o.statut === "active"
                       ? <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", { statut: "archivee" }))}>Archiver</button>
                       : <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", { statut: "active" }))}>Réactiver</button>}
+                    {o.statut === "active" && <button className="ghost" onClick={() => act(() => api(`/offres/${o.id}`, "PATCH", {}))}>Prolonger</button>}
                     <button className="danger" disabled={nb(o.id) > 0} title={nb(o.id) > 0 ? "Archive l'offre : elle a des candidatures" : ""} onClick={() => confirm("Supprimer cette offre ?") && act(() => api(`/offres/${o.id}`, "DELETE"))}>Supprimer</button>
                   </td>
                 </tr>

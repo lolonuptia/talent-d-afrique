@@ -40,6 +40,7 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     nom: str | None = Field(default=None, min_length=2)
     email: EmailStr | None = None
+    mot_de_passe_actuel: MotDePasseSaisi | None = None
 
     _norm_email = field_validator("email", mode="before")(_normaliser_email)
 

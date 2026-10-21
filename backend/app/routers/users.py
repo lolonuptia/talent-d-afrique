@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.security import verify_password
 from app.models.candidature import Candidature
 from app.models.certification import Certification
 from app.models.entretien import Entretien
@@ -58,6 +59,17 @@ def update_current_user(
     if payload.nom is not None:
         current_user.nom = payload.nom
     if payload.email is not None:
+        if (
+            current_user.type_profil == "entreprise"
+            and payload.email.lower() != current_user.email.lower()
+        ):
+            if not payload.mot_de_passe_actuel or not verify_password(
+                payload.mot_de_passe_actuel, current_user.mot_de_passe_hash
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Mot de passe actuel manquant ou incorrect.",
+                )
         deja = (
             db.query(User)
             .filter(func.lower(User.email) == payload.email.lower(), User.id != current_user.id)
@@ -84,6 +96,15 @@ def delete_current_user(
     # Purge definitive apres 30 jours : voir app/services/purge.py et scripts/purge_comptes.py
     current_user.deleted_at = datetime.utcnow()
     current_user.is_active = False
+    if current_user.type_profil == "entreprise":
+        profil_ent = (
+            db.query(EntrepriseProfile).filter(EntrepriseProfile.user_id == current_user.id).first()
+        )
+        if profil_ent is not None:
+            # les offres d'une entreprise supprimee ne doivent plus etre publiques
+            db.query(Offre).filter(Offre.entreprise_id == profil_ent.id).update(
+                {Offre.statut: "archivee"}, synchronize_session=False
+            )
     db.commit()
 
 

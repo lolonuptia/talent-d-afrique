@@ -51,7 +51,7 @@ export function Register() {
         <Field label="Nom de l'entreprise"><input required value={f.nom} onChange={(x) => setF({ ...f, nom: x.target.value })} /></Field>
         <Field label="Email"><input type="email" required value={f.email} onChange={(x) => setF({ ...f, email: x.target.value })} /></Field>
         <Field label="Mot de passe (8 caractères minimum)"><input type="password" minLength={8} required value={f.pw} onChange={(x) => setF({ ...f, pw: x.target.value })} /></Field>
-        <p><label><input type="checkbox" style={{ width: "auto" }} required checked={f.ok} onChange={(x) => setF({ ...f, ok: x.target.checked })} /> J'accepte les conditions d'utilisation et le traitement de mes données.</label></p>
+        <p><label><input type="checkbox" style={{ width: "auto" }} required checked={f.ok} onChange={(x) => setF({ ...f, ok: x.target.checked })} /> J'accepte les <Link to="/cgu" target="_blank" rel="noreferrer">conditions d'utilisation</Link> et la <Link to="/confidentialite" target="_blank" rel="noreferrer">politique de confidentialité</Link>.</label></p>
         <Err e={e} />
         <p><button>Créer mon compte</button></p>
         <p className="mut">Déjà inscrit ? <Link to="/login">Se connecter</Link></p>

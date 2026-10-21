@@ -42,6 +42,7 @@ export function Compte() {
   const [f, setF] = useState({ nom: user.nom, email: user.email });
   const [ok, setOk] = useState("");
   const [conf, setConf] = useState("");
+  const [mdpActuel, setMdpActuel] = useState("");
   const [eInfo, setEInfo] = useState<Error | null>(null);
   const [eExp, setEExp] = useState<Error | null>(null);
   const [eDel, setEDel] = useState<Error | null>(null);
@@ -57,7 +58,7 @@ export function Compte() {
   };
   const save = async (ev: FormEvent) => {
     ev.preventDefault(); setEInfo(null); setOk("");
-    try { const u = await api("/users/me", "PATCH", f); setUser(u); setOk("Informations mises à jour"); } catch (x) { setEInfo(x as Error); }
+    try { const u = await api("/users/me", "PATCH", f.email !== user.email ? { ...f, mot_de_passe_actuel: mdpActuel } : f); setUser(u); setMdpActuel(""); setOk("Informations mises à jour"); } catch (x) { setEInfo(x as Error); }
   };
   const exp = async () => {
     try {
@@ -80,6 +81,7 @@ export function Compte() {
         <div className="row">
           <Field label="Nom"><input required minLength={2} value={f.nom} onChange={(x) => setF({ ...f, nom: x.target.value })} /></Field>
           <Field label="Email"><input type="email" required value={f.email} onChange={(x) => setF({ ...f, email: x.target.value })} /></Field>
+          {f.email !== user.email && <Field label="Mot de passe actuel (requis pour changer l'email)"><input type="password" required value={mdpActuel} onChange={(x) => setMdpActuel(x.target.value)} /></Field>}
         </div>
         <Err e={eInfo} />{ok && <p className="ok">{ok}</p>}<button>Enregistrer</button>
       </form>

@@ -154,9 +154,17 @@ def test_changement_email_deja_pris(client):
     h1 = _login(client, _data("entreprise", "a@example.com", "Alpha"))
     _login(client, _data("entreprise", "b@example.com", "Beta"))
 
-    r = client.patch("/api/users/me", headers=h1, json={"email": "B@example.com"})
+    r = client.patch(
+        "/api/users/me",
+        headers=h1,
+        json={"email": "B@example.com", "mot_de_passe_actuel": "motdepasse123"},
+    )
     assert r.status_code == 400
-    r = client.patch("/api/users/me", headers=h1, json={"email": "c@example.com"})
+    r = client.patch(
+        "/api/users/me",
+        headers=h1,
+        json={"email": "c@example.com", "mot_de_passe_actuel": "motdepasse123"},
+    )
     assert r.status_code == 200 and r.json()["email"] == "c@example.com"
 
 

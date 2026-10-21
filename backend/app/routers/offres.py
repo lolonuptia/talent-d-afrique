@@ -1,11 +1,13 @@
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.candidature import Candidature
+from app.models.favori import Favori
 from app.models.offre import Offre
 from app.models.profiles import EntrepriseProfile, EtudiantProfile, FreelanceProfile
 from app.models.user import User
@@ -76,10 +78,9 @@ def list_offres(
     """Liste publique des offres (pour les candidats) - filtrable par statut et type de contrat."""
     expirer_offres_perimees(db)
     query = db.query(Offre)
-    if statut:
-        query = query.filter(Offre.statut == statut)
-    else:
-        query = query.filter(Offre.statut == "active")
+    if statut and statut != "active":
+        return []  # les offres archivees ou expirees ne sont jamais publiques
+    query = query.filter(Offre.statut == "active")
     if type_contrat:
         query = query.filter(Offre.type_contrat == type_contrat)
     return query.order_by(Offre.created_at.desc()).all()
@@ -161,10 +162,41 @@ def list_offres_recommandees(
     return resultats
 
 
+def _utilisateur_optionnel(request: Request, db: Session = Depends(get_db)) -> User | None:
+    try:
+        return get_current_user(
+            request.cookies.get("access_token"), request.headers.get("authorization"), db
+        )
+    except HTTPException:
+        return None
+
+
+def _peut_voir_offre(offre: Offre, user: User | None, db: Session) -> bool:
+    """Une offre non active n'est visible que par son entreprise, ses candidats ou ses fans."""
+    if user is None:
+        return False
+    if offre.entreprise.user_id == user.id:
+        return True
+    a_postule = (
+        db.query(Candidature.id)
+        .filter(Candidature.offre_id == offre.id, Candidature.candidat_id == user.id)
+        .first()
+    )
+    en_favori = (
+        db.query(Favori.id).filter(Favori.offre_id == offre.id, Favori.user_id == user.id).first()
+    )
+    return a_postule is not None or en_favori is not None
+
+
 @router.get("/{offre_id}", response_model=OffreOut)
-def get_offre(offre_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_offre(
+    offre_id: uuid.UUID,
+    user: User | None = Depends(_utilisateur_optionnel),
+    db: Session = Depends(get_db),
+):
+    expirer_offres_perimees(db)
     offre = db.query(Offre).filter(Offre.id == offre_id).first()
-    if offre is None:
+    if offre is None or (offre.statut != "active" and not _peut_voir_offre(offre, user, db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
     return offre
 
@@ -181,6 +213,7 @@ def update_offre(
 
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(offre, key, value)
+    offre.updated_at = datetime.utcnow()  # enregistrer = prolonger la duree de vie
 
     db.commit()
     db.refresh(offre)

@@ -1,3 +1,5 @@
+from html import escape
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -32,7 +34,7 @@ def forgot_password(
         envoyer_email_notification(
             user,
             "Reinitialisation de votre mot de passe",
-            f"<p>Bonjour {user.nom},</p>"
+            f"<p>Bonjour {escape(user.nom)},</p>"
             f'<p><a href="{lien}">Choisir un nouveau mot de passe</a> '
             f"(lien valable {DUREE_MINUTES} minutes, utilisable une seule fois).</p>"
             "<p>Si vous n'etes pas a l'origine de cette demande, ignorez ce message.</p>",
