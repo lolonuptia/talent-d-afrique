@@ -10,10 +10,12 @@ const LAB: Record<string, string> = {
   experience: "Expérience / TJM", disponibilite: "Disponibilité", soft_skills: "Soft skills",
 };
 
+const PAGE = 100;
+
 export default function Candidats() {
   const [sp, setSp] = useSearchParams();
   const offre = sp.get("offre") || "";
-  const [q, setQ] = useState({ score_min: "", disponibilite: "", statut: "" });
+  const [q, setQ] = useState({ score_min: "", disponibilite: "", statut: "", page: 0 });
   const [scoreIn, setScoreIn] = useState("");
   const timer = useRef<number | undefined>(undefined);
   const [open, setOpen] = useState<string | null>(null);
@@ -21,13 +23,13 @@ export default function Candidats() {
   const [e, setE] = useState<Error | null>(null);
   const offres = useLoad(() => getList("/offres/mine"));
   const rows = useLoad(
-    () => (offre ? getList(`/candidatures/offre/${offre}/classees${qs(q)}`) : Promise.resolve([] as any[])),
-    [offre, q.score_min, q.disponibilite, q.statut]
+    () => (offre ? getList(`/candidatures/offre/${offre}/classees${qs({ score_min: q.score_min, disponibilite: q.disponibilite, statut: q.statut, limit: PAGE, offset: q.page * PAGE })}`) : Promise.resolve([] as any[])),
+    [offre, q.score_min, q.disponibilite, q.statut, q.page]
   );
   const onScore = (v: string) => {
     setScoreIn(v);
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setQ((p) => ({ ...p, score_min: v })), 400);
+    timer.current = window.setTimeout(() => setQ((p) => ({ ...p, score_min: v, page: 0 })), 400);
   };
   const setStatut = async (id: string, statut: string) => {
     try { setE(null); await api(`/candidatures/${id}/statut`, "PATCH", { statut }); rows.reload(); } catch (x) { setE(x as Error); }
@@ -37,24 +39,31 @@ export default function Candidats() {
       <div className="card">
         <div className="row">
           <Field label="Offre">
-            <select value={offre} onChange={(x) => setSp(x.target.value ? { offre: x.target.value } : {})}>
+            <select value={offre} onChange={(x) => { setQ({ ...q, page: 0 }); setSp(x.target.value ? { offre: x.target.value } : {}); }}>
               <option value="">Choisir une offre</option>
               {(offres.data || []).map((o: any) => <option key={o.id} value={o.id}>{o.titre}</option>)}
             </select>
           </Field>
           <Field label="Score minimum"><input type="number" min={0} max={100} value={scoreIn} onChange={(x) => onScore(x.target.value)} /></Field>
           <Field label="Disponibilité">
-            <select value={q.disponibilite} onChange={(x) => setQ({ ...q, disponibilite: x.target.value })}>
+            <select value={q.disponibilite} onChange={(x) => setQ({ ...q, disponibilite: x.target.value, page: 0 })}>
               <option value="">Toutes</option>{C.dispos.map((v) => <option key={v} value={v}>{dispoLabel(v)}</option>)}
             </select>
           </Field>
           <Field label="Statut">
-            <select value={q.statut} onChange={(x) => setQ({ ...q, statut: x.target.value })}>
+            <select value={q.statut} onChange={(x) => setQ({ ...q, statut: x.target.value, page: 0 })}>
               <option value="">Tous</option>{C.statutsCand.map((v) => <option key={v} value={v}>{v.replace(/_/g, " ")}</option>)}
             </select>
           </Field>
         </div>
         <Err e={offres.error} />
+        {offre && (
+          <p className="actions">
+            <button className="ghost" disabled={q.page === 0} onClick={() => setQ({ ...q, page: q.page - 1 })}>Précédent</button>
+            <button className="ghost" disabled={(rows.data || []).length < PAGE} onClick={() => setQ({ ...q, page: q.page + 1 })}>Suivant</button>
+            <span className="mut">Page {q.page + 1}</span>
+          </p>
+        )}
         <Err e={e} />
         {!offre ? <p className="mut">Choisis une offre pour voir ses candidats.</p> : (
           <Async s={rows}>{(l) => l.length ? (

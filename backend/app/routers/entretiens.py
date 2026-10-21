@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 from html import escape
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -73,7 +74,14 @@ def _notifier(db: Session, candidat: User, titre: str, message: str, evenement: 
     envoyer_email_notification(candidat, titre, f"<p>{escape(message)}</p>")
 
 
-def _quand(dt: datetime) -> str:
+def _quand(dt: datetime, fuseau: str | None = None) -> str:
+    """Date lisible : dans le fuseau de l'entreprise si connu (et disponible), sinon en UTC."""
+    if fuseau:
+        try:
+            local = dt.replace(tzinfo=UTC).astimezone(ZoneInfo(fuseau))
+            return local.strftime("%d/%m/%Y a %H:%M") + f" (heure de {fuseau})"
+        except Exception:  # noqa: BLE001
+            pass
     return dt.strftime("%d/%m/%Y a %H:%M (UTC)")
 
 
@@ -113,7 +121,8 @@ def planifier_entretien(
         db,
         candidature.candidat,
         "Entretien planifie",
-        f"Un entretien a ete planifie pour l'offre {candidature.offre.titre} le {_quand(quand)}.",
+        f"Un entretien a ete planifie pour l'offre {candidature.offre.titre} "
+        f"le {_quand(quand, entretien.fuseau)}.",
         "entretien_planifie",
     )
     return entretien
@@ -205,7 +214,7 @@ def modifier_entretien(
             candidature.candidat,
             "Entretien modifie",
             f"L'entretien pour l'offre {titre_offre} est reporte au "
-            f"{_quand(entretien.date_heure)}.",
+            f"{_quand(entretien.date_heure, entretien.fuseau)}.",
             "entretien_modifie",
         )
     return entretien

@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, C, coerce, list } from "../api";
 import { Async, Badge, Err, Field, Page, fdate, useLoad } from "../ui";
 
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const MODE: Record<string, string> = { visio: "Visio", presentiel: "Présentiel", telephone: "Téléphone" };
 
 export default function Entretiens() {
@@ -23,7 +24,7 @@ export default function Entretiens() {
       await api("/entretiens", "POST", {
         candidature_id: f.candidature_id, date_heure: new Date(f.date_heure).toISOString(),
         duree_minutes: coerce("EntretienCreate", "duree_minutes", f.duree_minutes), mode: f.mode,
-        lieu_ou_lien: f.lieu_ou_lien || null, message: f.message || null,
+        lieu_ou_lien: f.lieu_ou_lien || null, message: f.message || null, fuseau: TZ,
       });
       setF({ ...f, date_heure: "", lieu_ou_lien: "", message: "" }); s.reload();
     } catch (x) { setE(x as Error); }
@@ -76,7 +77,7 @@ export default function Entretiens() {
                           {x.statut === "planifie" && (r ? (
                             <>
                               <input type="datetime-local" value={r.v} onChange={(ev) => setRep({ id: x.id, v: ev.target.value })} />
-                              <button disabled={!r.v} onClick={() => patch(x.id, { date_heure: new Date(r.v).toISOString() })}>Valider</button>
+                              <button disabled={!r.v} onClick={() => patch(x.id, { date_heure: new Date(r.v).toISOString(), fuseau: TZ })}>Valider</button>
                               <button className="ghost" onClick={() => setRep(null)}>Annuler</button>
                             </>
                           ) : <button className="ghost" onClick={() => setRep({ id: x.id, v: "" })}>Reporter</button>)}

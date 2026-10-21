@@ -51,6 +51,7 @@ class UserOut(BaseModel):
     email: EmailStr
     type_profil: str
     is_admin: bool = False
+    email_verifie: bool = True
     created_at: datetime
 
     class Config:
@@ -80,3 +81,7 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     ancien_mot_de_passe: MotDePasseSaisi
     nouveau_mot_de_passe: MotDePasse
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str

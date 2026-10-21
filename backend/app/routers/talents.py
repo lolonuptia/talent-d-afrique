@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, verifier_email
 from app.core.skills_dictionary import expand_skill
 from app.models.certification import Certification
 from app.models.portfolio import PortfolioItem
@@ -53,6 +53,7 @@ def search_talents(
     db: Session = Depends(get_db),
 ):
     """Recherche de talents visibles. Reserve aux entreprises, sans email."""
+    verifier_email(current_user)
     if current_user.type_profil != "entreprise":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -113,6 +114,7 @@ def get_talent(
     db: Session = Depends(get_db),
 ):
     """Detail d'un talent visible : profil, certifications, portfolio. Sans email."""
+    verifier_email(current_user)
     if current_user.type_profil != "entreprise":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.limiter import limiter
+from app.core.revocation import est_revoque, revoquer, session_invalidee
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,6 +18,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.schemas.user import RefreshRequest, TokenResponse, UserCreate, UserLogin, UserOut
+from app.services.verification import envoyer_verification
 
 router = APIRouter()
 
@@ -73,6 +75,7 @@ def register(
     db.add(user)
     db.commit()
     db.refresh(user)
+    envoyer_verification(user)
 
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))
@@ -145,6 +148,12 @@ def refresh(
             detail="Utilisateur introuvable ou compte desactive.",
         )
 
+    if est_revoque(db, token_data) or session_invalidee(user, token_data):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expiree. Reconnectez-vous.",
+        )
+
     new_access_token = create_access_token(str(user.id))
     new_refresh_token = create_refresh_token(str(user.id))
     response.set_cookie(
@@ -174,7 +183,22 @@ def refresh(
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(
+    request: Request,
+    response: Response,
+    payload: RefreshRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    jetons = {request.cookies.get("access_token"), request.cookies.get("refresh_token")}
+    if payload is not None:
+        jetons.add(payload.refresh_token)
+    authorization = request.headers.get("authorization")
+    if authorization and authorization.lower().startswith("bearer "):
+        jetons.add(authorization.split(" ", 1)[1])
+    for jeton in jetons:
+        if jeton:
+            revoquer(db, jeton)
+    db.commit()
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
     return {"message": "Deconnecte."}

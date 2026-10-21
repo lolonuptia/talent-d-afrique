@@ -1,10 +1,10 @@
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -188,45 +188,53 @@ def list_candidatures_classees(
     score_min: float | None = None,
     disponibilite: str | None = None,
     statut: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Dashboard entreprise : candidats tries par score de compatibilite (cf. section 2.2).
 
-    Filtres optionnels :
-    - score_min : n'affiche que les candidatures dont le score global est >= a cette valeur
-    - disponibilite : filtre exact sur la disponibilite declaree par le candidat
-    - statut : filtre exact sur le statut (recue, en_cours, entretien, refusee, acceptee)
+    Filtres optionnels : score_min, disponibilite (exacte), statut. Pagination : limit/offset.
     """
     offre = _get_offre_owned_by_current_entreprise(offre_id, current_user, db)
 
-    query = db.query(Candidature).filter(Candidature.offre_id == offre_id)
+    query = (
+        db.query(Candidature)
+        .options(joinedload(Candidature.candidat))
+        .filter(Candidature.offre_id == offre_id)
+        .order_by(Candidature.created_at.desc())
+    )
     if statut:
         query = query.filter(Candidature.statut == statut)
-    candidatures = query.all()
+    candidatures = [c for c in query.all() if c.candidat.deleted_at is None]
+
+    ids = [c.candidat_id for c in candidatures]
+    etudiants = (
+        {p.user_id: p for p in db.query(EtudiantProfile).filter(EtudiantProfile.user_id.in_(ids))}
+        if ids
+        else {}
+    )
+    freelances = (
+        {p.user_id: p for p in db.query(FreelanceProfile).filter(FreelanceProfile.user_id.in_(ids))}
+        if ids
+        else {}
+    )
 
     resultats = []
     for candidature in candidatures:
         candidat = candidature.candidat
-        if candidat.deleted_at is not None:
-            continue
         candidat_tjm = None
+        annees_experience = None
 
         if candidat.type_profil == "etudiant":
-            profile = (
-                db.query(EtudiantProfile).filter(EtudiantProfile.user_id == candidat.id).first()
-            )
-            competences = profile.competences if profile else None
-            candidat_disponibilite = profile.disponibilite if profile else None
-            annees_experience = None
+            profile = etudiants.get(candidat.id)
         else:
-            profile = (
-                db.query(FreelanceProfile).filter(FreelanceProfile.user_id == candidat.id).first()
-            )
-            competences = profile.competences if profile else None
-            candidat_disponibilite = profile.disponibilite if profile else None
+            profile = freelances.get(candidat.id)
             annees_experience = profile.annees_experience if profile else None
             candidat_tjm = profile.tjm if profile else None
+        competences = profile.competences if profile else None
+        candidat_disponibilite = profile.disponibilite if profile else None
 
         if disponibilite and (
             not candidat_disponibilite
@@ -262,7 +270,7 @@ def list_candidatures_classees(
         )
 
     resultats.sort(key=lambda c: c.score_global, reverse=True)
-    return resultats
+    return resultats[offset : offset + limit]
 
 
 def _candidature_de_mon_entreprise(

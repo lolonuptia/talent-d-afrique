@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, type FormEvent } from "react";
-import { api, coerce } from "../api";
+import { api, coerce, setTokens } from "../api";
 import { useAuth } from "../auth";
 import { Err, Field, Page } from "../ui";
 
@@ -52,7 +52,8 @@ export function Compte() {
   const savePw = async (ev: FormEvent) => {
     ev.preventDefault(); setEPw(null); setOkPw("");
     try {
-      await api("/auth/change-password", "POST", { ancien_mot_de_passe: pw.ancien, nouveau_mot_de_passe: pw.nouveau });
+      const t = await api("/auth/change-password", "POST", { ancien_mot_de_passe: pw.ancien, nouveau_mot_de_passe: pw.nouveau });
+      if (t?.access_token) setTokens(t.access_token, t.refresh_token);
       setPw({ ancien: "", nouveau: "" }); setOkPw("Mot de passe modifié");
     } catch (x) { setEPw(x as Error); }
   };

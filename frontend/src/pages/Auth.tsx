@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -111,6 +111,27 @@ export function ResetPassword() {
         </form>
       )}
       <p className="mut"><Link to="/login">Retour à la connexion</Link></p>
+    </Shell>
+  );
+}
+
+export function VerifyEmail() {
+  const [sp] = useSearchParams();
+  const token = sp.get("token") || "";
+  const [etat, setEtat] = useState<"attente" | "ok" | "erreur">(token ? "attente" : "erreur");
+  const [e, setE] = useState<Error | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    api("/auth/verify-email", "POST", { token })
+      .then(() => setEtat("ok"))
+      .catch((x) => { setE(x as Error); setEtat("erreur"); });
+  }, [token]);
+  return (
+    <Shell title="Confirmation de l'email">
+      {etat === "attente" && <p className="mut">Vérification en cours...</p>}
+      {etat === "ok" && <p className="ok">Adresse email confirmée. <a href="/">Accéder au dashboard</a></p>}
+      {etat === "erreur" && <><Err e={e} />{!e && <p className="err">Lien incomplet.</p>}<p className="mut">Connecte-toi : le dashboard te permet de demander un nouveau lien.</p></>}
+      <p className="mut"><Link to="/login">Connexion</Link></p>
     </Shell>
   );
 }

@@ -24,6 +24,7 @@ from app.models.profiles import (
 )
 from app.models.user import User
 from app.schemas.user import UserOut, UserUpdate
+from app.services.verification import envoyer_verification
 
 router = APIRouter()
 
@@ -56,6 +57,7 @@ def update_current_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    email_change = False
     if payload.nom is not None:
         current_user.nom = payload.nom
     if payload.email is not None:
@@ -80,10 +82,14 @@ def update_current_user(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cet email est deja utilise.",
             )
+        if payload.email.lower() != current_user.email.lower():
+            current_user.email_verifie_at = None
+            email_change = True
         current_user.email = payload.email
-
     db.commit()
     db.refresh(current_user)
+    if email_change:
+        envoyer_verification(current_user)
     return current_user
 
 

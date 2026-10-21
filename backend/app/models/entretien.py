@@ -24,6 +24,7 @@ class Entretien(Base):
         default="visio",
     )
     lieu_ou_lien = Column(String, nullable=True)
+    fuseau = Column(String, nullable=True)  # fuseau IANA de l'entreprise (ex: Africa/Dakar)
     message = Column(Text, nullable=True)  # instructions visibles par le candidat
 
     statut = Column(

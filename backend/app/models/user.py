@@ -30,3 +30,10 @@ class User(Base):
     deleted_at = Column(DateTime, nullable=True)  # suppression logique (soft delete)
 
     is_active = Column(Boolean, default=True)
+
+    email_verifie_at = Column(DateTime, nullable=True)
+    mot_de_passe_modifie_at = Column(DateTime, nullable=True)  # invalide les anciennes sessions
+
+    @property
+    def email_verifie(self) -> bool:
+        return self.email_verifie_at is not None

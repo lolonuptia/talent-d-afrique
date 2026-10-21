@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     cv_storage_dir: str = "./storage/cvs"
 
     environment: str = "development"
+    require_email_verification: bool = True
 
     class Config:
         env_file = ".env"

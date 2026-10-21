@@ -5,8 +5,9 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.checks import verifier_configuration_production
 from app.core.config import settings
-from app.core.database import engine  # noqa: F401
+from app.core.database import engine
 from app.core.limiter import limiter
+from app.core.migrations_legeres import appliquer_migrations_legeres
 from app.models import (  # noqa: F401
     candidature,
     certification,
@@ -39,6 +40,12 @@ from app.routers import portfolio as portfolio_router
 from app.routers import profiles as profiles_router
 
 verifier_configuration_production(settings)
+
+if settings.environment != "test":
+    try:
+        appliquer_migrations_legeres(engine)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[MIGRATION] ignoree : {exc}")
 
 app = FastAPI(
     title="Talent d'Afrique API",

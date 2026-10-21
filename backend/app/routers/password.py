@@ -1,3 +1,4 @@
+from datetime import datetime
 from html import escape
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -8,11 +9,27 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.limiter import limiter
-from app.core.reset_tokens import DUREE_MINUTES, creer_token_reset, lire_token_reset
-from app.core.security import hash_password, verify_password
+from app.core.reset_tokens import (
+    DUREE_MINUTES,
+    creer_token_reset,
+    lire_token_reset,
+    lire_token_verif,
+)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.models.user import User
-from app.schemas.user import ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.user import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    VerifyEmailRequest,
+)
 from app.services.notifications import envoyer_email_notification
+from app.services.verification import envoyer_verification
 
 router = APIRouter()
 
@@ -51,7 +68,11 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Lien invalide ou expire. Refaites une demande.",
         )
+    maintenant = datetime.utcnow()
     user.mot_de_passe_hash = hash_password(payload.mot_de_passe)
+    user.mot_de_passe_modifie_at = maintenant  # coupe toutes les anciennes sessions
+    if user.email_verifie_at is None:
+        user.email_verifie_at = maintenant  # le lien recu par email prouve la propriete
     db.commit()
     return {"message": "Mot de passe modifie."}
 
@@ -67,5 +88,39 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Mot de passe actuel incorrect."
         )
     current_user.mot_de_passe_hash = hash_password(payload.nouveau_mot_de_passe)
+    current_user.mot_de_passe_modifie_at = datetime.utcnow()  # coupe les autres sessions
     db.commit()
-    return {"message": "Mot de passe modifie."}
+    # nouveaux jetons pour que la session en cours continue
+    return {
+        "message": "Mot de passe modifie.",
+        "access_token": create_access_token(str(current_user.id)),
+        "refresh_token": create_refresh_token(str(current_user.id)),
+    }
+
+
+@router.post("/verify-email")
+@limiter.limit("20/minute")
+def verify_email(request: Request, payload: VerifyEmailRequest, db: Session = Depends(get_db)):
+    user = lire_token_verif(payload.token, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Lien invalide ou expire. Demandez un nouveau lien depuis le dashboard.",
+        )
+    if user.email_verifie_at is None:
+        user.email_verifie_at = datetime.utcnow()
+        db.commit()
+    return {"message": "Email confirme."}
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+def resend_verification(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.email_verifie_at is None:
+        envoyer_verification(current_user)
+    return {
+        "message": "Si votre email n'est pas encore confirme, un nouveau lien vient d'etre envoye."
+    }

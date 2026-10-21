@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { list } from "./api";
+import { api, list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
-import { ForgotPassword, Login, Register, ResetPassword } from "./pages/Auth";
+import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from "./pages/Auth";
 import Overview from "./pages/Overview";
 import { OffreForm, OffresList } from "./pages/Offres";
 import Candidats from "./pages/Candidats";
@@ -14,6 +14,21 @@ import Talents from "./pages/Talents";
 import Notifications from "./pages/Notifications";
 import { Compte, Profil } from "./pages/Compte";
 import { Cgu, Confidentialite } from "./pages/Legal";
+
+function VerifBanner({ user }: { user: any }) {
+  const [msg, setMsg] = useState("");
+  if (user.email_verifie !== false) return null;
+  const renvoyer = async () => {
+    try { await api("/auth/resend-verification", "POST"); setMsg("Lien renvoyé : regarde ta boîte mail (et les courriers indésirables)."); }
+    catch (x) { setMsg((x as Error).message); }
+  };
+  return (
+    <p className="err">
+      Confirme ton adresse email pour publier des offres et chercher des talents.{" "}
+      <button className="ghost" onClick={renvoyer}>Renvoyer le lien</button> {msg}
+    </p>
+  );
+}
 
 function Layout() {
   const { user, loading, logout } = useAuth();
@@ -46,7 +61,7 @@ function Layout() {
         ))}
         <button onClick={logout}>Se déconnecter</button>
       </aside>
-      <main className="main"><Outlet /></main>
+      <main className="main"><VerifBanner user={user} /><Outlet /></main>
     </div>
   );
 }
@@ -67,6 +82,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/cgu" element={<Cgu />} />
       <Route path="/confidentialite" element={<Confidentialite />} />
       <Route path="/reset-password" element={<ResetPassword />} />

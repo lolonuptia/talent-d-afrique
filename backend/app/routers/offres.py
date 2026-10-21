@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, verifier_email
 from app.models.candidature import Candidature
 from app.models.favori import Favori
 from app.models.offre import Offre
@@ -58,6 +58,7 @@ def create_offre(
 ):
     entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
 
+    verifier_email(current_user)
     offre = Offre(
         id=uuid.uuid4(),
         entreprise_id=entreprise_profile.id,

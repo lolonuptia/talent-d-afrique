@@ -1,7 +1,9 @@
 from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.revocation import est_revoque, session_invalidee
 from app.core.security import decode_token
 from app.models.user import User
 
@@ -48,7 +50,29 @@ def get_current_user(
             detail="Utilisateur introuvable ou compte desactive.",
         )
 
+    if est_revoque(db, payload) or session_invalidee(user, payload):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expiree. Reconnectez-vous.",
+        )
+
     return user
+
+
+def verifier_email(user: User) -> None:
+    """Une entreprise doit avoir confirme son email avant de publier ou chercher des talents."""
+    if (
+        settings.require_email_verification
+        and user.type_profil == "entreprise"
+        and user.email_verifie_at is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Confirmez votre adresse email (lien envoye a l'inscription) "
+                "pour utiliser cette fonction."
+            ),
+        )
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:

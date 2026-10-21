@@ -157,7 +157,7 @@ def test_emails_html_echappes(client, monkeypatch):
     client.post("/api/candidatures", headers=h_etu, json={"offre_id": r.json()["id"]})
 
     assert envoyes
-    contenu = envoyes[0][2]
+    contenu = next(h for _, s, h in envoyes if "candidature" in s)
     assert "<b>" not in contenu and "&lt;b&gt;" in contenu
 
 
