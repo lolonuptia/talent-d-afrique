@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench, ClipboardList } from "lucide-react";
+import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench, ClipboardList, Compass } from "lucide-react";
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, list } from "./api";
 import { useAuth } from "./auth";
@@ -19,6 +19,8 @@ import Profil from "./forms-pro/ProfilPro";
 import { Cgu, Confidentialite } from "./pages/Legal";
 import { AdminHome, AdminOffres, AdminUsers } from "./pages/Admin";
 import { AdminJournalPlus, AdminOutils, AdminUserDetail } from "./pages/AdminPlus";
+import GuidePro, { OnboardingWidget } from "./onboarding/OnboardingPro";
+import PageGuide from "./onboarding/PageGuide";
 import FormsPro from "./forms-pro/FormsPro";
 
 import Missions from "./pro/MissionsPro";
@@ -46,7 +48,7 @@ function VerifBanner({ user }: { user: any }) {
 const ICON: Record<string, ReactNode> = {
   "/": <LayoutDashboard size={18} />, "/offres": <Briefcase size={18} />, "/candidats": <Users size={18} />,
   "/entretiens": <CalendarDays size={18} />, "/missions": <ClipboardList size={18} />, "/messages": <MessageSquare size={18} />, "/talents": <Search size={18} />,
-  "/notifications": <Bell size={18} />, "/profil": <Building2 size={18} />, "/formulaires": <Briefcase size={18} />, "/compte": <Settings size={18} />,
+  "/notifications": <Bell size={18} />, "/profil": <Building2 size={18} />, "/guide": <Compass size={18} />, "/formulaires": <Briefcase size={18} />, "/compte": <Settings size={18} />,
   "/admin": <LayoutDashboard size={18} />, "/admin/utilisateurs": <Users size={18} />, "/admin/offres": <Briefcase size={18} />,
   "/admin/outils": <Wrench size={18} />, "/admin/journal": <ScrollText size={18} />,
 };
@@ -84,7 +86,7 @@ function Layout() {
   const nav: [string, string][] = user.is_admin ? ADMIN_NAV : [
     ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"], ["/missions", "Missions"],
     ["/messages", "Messages"], ["/talents", "Talents"], ["/notifications", "Notifications"],
-    ["/profil", "Profil entreprise"], ["/formulaires", "Formulaires"], ["/compte", "Mon compte"],
+    ["/profil", "Profil entreprise"], ["/guide", "Guide"], ["/formulaires", "Formulaires"], ["/compte", "Mon compte"],
   ];
   const current = nav.find(([to]) => (to === "/" ? pathname === "/" : pathname.startsWith(to)))?.[1] ?? "";
   const matches = q.trim() ? nav.filter(([, l]) => l.toLowerCase().includes(q.trim().toLowerCase())) : [];
@@ -145,6 +147,8 @@ function Layout() {
           </div>
         </header>
         <main className="main"><VerifBanner user={user} /><Outlet /></main>
+        {!user.is_admin && <OnboardingWidget />}
+        {!user.is_admin && <PageGuide />}
       </div>
     </div>
   );
@@ -181,6 +185,7 @@ export default function App() {
         <Route path="/talents" element={<Talents />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profil" element={<Profil />} />
+        <Route path="/guide" element={<GuidePro />} />
         <Route path="/formulaires" element={<FormsPro />} />
         <Route path="/compte" element={<Compte />} />
         <Route path="/admin" element={<AdminHome />} />
