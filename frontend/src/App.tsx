@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench } from "lucide-react";
+import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench, ClipboardList } from "lucide-react";
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
 import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from "./pages/Auth";
 import Overview from "./pro/OverviewPro";
-import { OffresList } from "./pages/Offres";
+import OffresList from "./pro/OffresPro";
 import OffreForm from "./forms-pro/OffreFormPro";
 import Candidats from "./forms-pro/CandidatsPro";
 import Entretiens from "./forms-pro/EntretiensPro";
@@ -20,6 +20,8 @@ import { Cgu, Confidentialite } from "./pages/Legal";
 import { AdminHome, AdminOffres, AdminUsers } from "./pages/Admin";
 import { AdminJournalPlus, AdminOutils, AdminUserDetail } from "./pages/AdminPlus";
 import FormsPro from "./forms-pro/FormsPro";
+
+import Missions from "./pro/MissionsPro";
 
 const ADMIN_NAV: [string, string][] = [
   ["/admin", "Tableau de bord"], ["/admin/utilisateurs", "Utilisateurs"], ["/admin/offres", "Offres"],
@@ -43,7 +45,7 @@ function VerifBanner({ user }: { user: any }) {
 
 const ICON: Record<string, ReactNode> = {
   "/": <LayoutDashboard size={18} />, "/offres": <Briefcase size={18} />, "/candidats": <Users size={18} />,
-  "/entretiens": <CalendarDays size={18} />, "/messages": <MessageSquare size={18} />, "/talents": <Search size={18} />,
+  "/entretiens": <CalendarDays size={18} />, "/missions": <ClipboardList size={18} />, "/messages": <MessageSquare size={18} />, "/talents": <Search size={18} />,
   "/notifications": <Bell size={18} />, "/profil": <Building2 size={18} />, "/formulaires": <Briefcase size={18} />, "/compte": <Settings size={18} />,
   "/admin": <LayoutDashboard size={18} />, "/admin/utilisateurs": <Users size={18} />, "/admin/offres": <Briefcase size={18} />,
   "/admin/outils": <Wrench size={18} />, "/admin/journal": <ScrollText size={18} />,
@@ -80,7 +82,7 @@ function Layout() {
   if (!user.is_admin && pathname.startsWith("/admin")) return <Navigate to="/" replace />;
   const unread = (notifs.data || []).filter((n: any) => !n.lue).length;
   const nav: [string, string][] = user.is_admin ? ADMIN_NAV : [
-    ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"],
+    ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"], ["/missions", "Missions"],
     ["/messages", "Messages"], ["/talents", "Talents"], ["/notifications", "Notifications"],
     ["/profil", "Profil entreprise"], ["/formulaires", "Formulaires"], ["/compte", "Mon compte"],
   ];
@@ -174,6 +176,7 @@ export default function App() {
         <Route path="/offres/:id/modifier" element={<OffreForm key="edit" />} />
         <Route path="/candidats" element={<Candidats />} />
         <Route path="/entretiens" element={<Entretiens />} />
+        <Route path="/missions" element={<Missions />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/talents" element={<Talents />} />
         <Route path="/notifications" element={<Notifications />} />

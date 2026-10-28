@@ -12,6 +12,7 @@ from app.models import (  # noqa: F401
     candidature,
     certification,
     entretien,
+    mission,
     favori,
     message,
     notification,
@@ -30,6 +31,7 @@ from app.routers import (
     favoris,
     health,
     messages,
+    missions,
     notifications,
     offres,
     talents,
@@ -82,6 +84,7 @@ app.include_router(certifications.router, prefix="/api/certifications", tags=["c
 app.include_router(portfolio_router.router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(entretiens.router, prefix="/api/entretiens", tags=["entretiens"])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
+app.include_router(missions.router, prefix="/api/missions", tags=["missions"])
 
 
 @app.get("/")
