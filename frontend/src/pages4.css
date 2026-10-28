@@ -1,0 +1,22 @@
+/* ---------- Admin ---------- */
+.x-hb{display:flex;flex-direction:column;gap:10px}
+.x-hb-r{display:grid;grid-template-columns:minmax(90px,200px) 1fr 40px;gap:12px;align-items:center;font-size:14px}
+.x-hb-r span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x-hb-r b{text-align:right}
+.x-cols{display:flex;gap:8px;align-items:stretch;height:210px;overflow-x:auto;padding-bottom:4px}
+.x-col{flex:1;min-width:38px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.x-col b{font-size:12px}
+.x-col-t{flex:1;width:100%;display:flex;align-items:flex-end}
+.x-col-t i{display:block;width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#14a07a,var(--brand));transition:height .6s}
+.x-col span{font-size:11px;color:var(--mut);white-space:nowrap}
+.x-who{display:flex;align-items:center;gap:10px}
+.x-who .x-av{width:34px;height:34px;font-size:13px}
+.x-uhead{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.x-uhead-t{min-width:0;flex:1}
+.x-dl{display:grid;gap:12px 20px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin:0}
+.x-dl dt{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.x-dl dd{margin:0;overflow-wrap:anywhere}
+.x-sec-h>span.ico{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+@media(max-width:800px){
+  .x-hb-r{grid-template-columns:1fr 36px}.x-hb-r .bar{grid-column:1/-1;order:3}
+}

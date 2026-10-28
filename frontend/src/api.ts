@@ -128,3 +128,19 @@ export async function openFile(path: string) {
     throw x;
   }
 }
+
+/** Télécharge un fichier protégé (export CSV) en envoyant le jeton d'accès. */
+export async function saveFile(path: string, filename: string) {
+  let res = await send(path, "GET");
+  if (res.status === 401 && (await refreshTokens())) res = await send(path, "GET");
+  if (!res.ok) {
+    const raw = await res.text();
+    let d: unknown;
+    try { d = JSON.parse(raw); } catch { d = raw; }
+    throw new ApiError(text(d, res.status));
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
