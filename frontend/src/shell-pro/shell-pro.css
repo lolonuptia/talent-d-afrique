@@ -1,0 +1,52 @@
+/* shell-pro : charge en dernier, surcharge la coque existante */
+:root{--sp-glass:color-mix(in srgb,var(--bg) 78%,transparent)}
+body{background:radial-gradient(900px 520px at 100% -8%,rgba(15,157,115,.10),transparent 60%),radial-gradient(700px 420px at -8% 108%,rgba(227,176,35,.08),transparent 60%),var(--bg);background-attachment:fixed}
+html[data-theme=dark] body{background:radial-gradient(900px 520px at 100% -8%,rgba(25,163,122,.10),transparent 60%),radial-gradient(700px 420px at -8% 108%,rgba(227,176,35,.05),transparent 60%),var(--bg);background-attachment:fixed}
+
+/* menu lateral */
+.side{background:radial-gradient(240px 180px at 0 0,rgba(227,176,35,.16),transparent 70%),linear-gradient(185deg,#08382b 0%,#052a20 55%,#041c15 100%);border-right:1px solid rgba(255,255,255,.06);padding:18px 14px}
+html[data-theme=dark] .side{background:radial-gradient(240px 180px at 0 0,rgba(227,176,35,.10),transparent 70%),linear-gradient(185deg,#06261d 0%,#041812 55%,#030f0b 100%)}
+.side .logo{font-size:18px;font-weight:700}
+.logo-mark{box-shadow:0 8px 18px -8px rgba(242,183,5,.8)}
+.side .who{margin:0 0 10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);color:#d7ebe2;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side a{border-radius:12px;padding:10px 12px;font-weight:600;font-size:14px;color:#b4cfc4}
+.side a:hover{background:rgba(255,255,255,.07);color:#fff;transform:none}
+.side a .ni svg{transition:transform .18s}
+.side a:hover .ni svg{transform:scale(1.1)}
+.side a.active{background:linear-gradient(135deg,rgba(15,157,115,.96),rgba(20,160,122,.78));color:#fff;box-shadow:0 10px 24px -12px rgba(15,157,115,.95),inset 0 0 0 1px rgba(255,255,255,.14)}
+.side a.active::before{content:"";position:absolute;left:-14px;top:24%;bottom:24%;width:4px;border-radius:0 4px 4px 0;background:var(--kente)}
+.side a .nb{background:var(--kente);color:#2a2000;font-weight:800}
+.side-out{border-radius:12px;font-weight:600}
+.side-out:hover{background:rgba(225,29,72,.22);border-color:rgba(225,29,72,.4);color:#fff;transform:none}
+.side-toggle{border-radius:10px}
+
+/* barre du haut */
+.topbar{background:var(--sp-glass);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);padding:12px 32px}
+.crumb b{font-weight:700}
+.tsearch input{height:42px;min-height:42px;border-radius:14px;padding-left:42px;background:var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a9a92' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>") no-repeat 15px center}
+.tsearch-res{border-radius:16px;padding:6px}
+.tsearch-res a{border-radius:11px;align-items:center}
+.icon-btn{border-radius:13px;background:var(--card);transition:.18s}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand);background:var(--card)}
+.avatar{transition:.18s}
+.avatar:hover{transform:scale(1.06)}
+.menu{border-radius:18px;padding:8px;min-width:250px}
+.menu-h{background:var(--bg);border-radius:12px;border-bottom:0;margin-bottom:6px}
+.menu a:hover,.menu button:hover{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+.main{padding:28px 32px 40px}
+
+@media(max-width:1000px){.main{padding:22px 20px 40px}.topbar{padding:10px 20px}}
+
+/* mobile : barre du bas flottante */
+@media(max-width:800px){
+  .side{left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));border-radius:22px;padding:6px;background:rgba(5,32,24,.93);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 40px -14px rgba(0,0,0,.7)}
+  html[data-theme=dark] .side{background:rgba(4,22,17,.94)}
+  .side a.active::before{left:30%;right:30%;top:0;bottom:auto;width:auto;height:3px;border-radius:0 0 4px 4px}
+  .main{padding:16px 14px 120px}
+  .topbar{padding:10px 14px}
+  .ob-launch{bottom:100px;right:14px}
+  .ob-panel{bottom:156px;right:14px}
+  .pg-float{bottom:156px;right:14px}
+  .pg-prompt{bottom:100px}
+  .fp-toast,.tp-toast{bottom:120px}
+}

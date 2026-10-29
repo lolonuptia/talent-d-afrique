@@ -7,6 +7,10 @@ import { api, C, list as getList, qs } from "../api";
 import { Async, Err, dispoLabel, useLoad } from "../ui";
 import CandidatProfil from "../pages/CandidatProfil";
 import { Field } from "./FormsPro";
+import { MessageCircle } from "lucide-react";
+import { useAuth } from "../auth";
+import { WhatsAppDialog } from "../whatsapp/WhatsAppDialog";
+import { CANDIDAT_TEMPLATES } from "../whatsapp/wa";
 import "./forms-pro.css";
 
 const LAB = {
@@ -42,6 +46,15 @@ export default function CandidatsPro() {
   const [open, setOpen] = useState(null);
   const [prof, setProf] = useState(null);
   const [over, setOver] = useState(null);
+  const { user } = useAuth();
+  const [wa, setWa] = useState(null);
+  const [waPh, setWaPh] = useState("");
+  const openWa = async (c) => {
+    let p = "";
+    try { const d = await api("/candidatures/" + c.id + "/candidat"); p = d?.telephone || ""; } catch {}
+    if (!p) { try { p = localStorage.getItem("wa:" + c.candidat_id) || ""; } catch {} }
+    setWaPh(p); setWa(c);
+  };
   const offres = useLoad(() => getList("/offres/mine"));
   const rows = useLoad(
     () => (offre ? getList("/candidatures/offre/" + offre + "/classees" + qs({ score_min: q.score_min, disponibilite: q.disponibilite, statut: q.statut, limit: PAGE, offset: q.page * PAGE })) : Promise.resolve([])),
@@ -72,6 +85,7 @@ export default function CandidatsPro() {
       <button className="cp-act" onClick={() => setOpen(open === c.id ? null : c.id)}><ChevronDown size={14} />Score</button>
       <Link className="cp-act" to={"/entretiens?cand=" + c.id}><CalendarPlus size={14} />Entretien</Link>
       <Link className="cp-act" to={"/messages?c=" + c.id}><MessageSquare size={14} />Écrire</Link>
+      <button className="cp-act wa" onClick={() => openWa(c)}><MessageCircle size={14} />WhatsApp</button>
     </div>
   );
   const extra = (c) => (
@@ -148,6 +162,13 @@ export default function CandidatsPro() {
           </div>
         </Field>
         <Err e={offres.error} />
+        {wa && <WhatsAppDialog
+          title={"WhatsApp : " + nomOf(wa)} subtitle="Candidature à votre offre"
+          templates={CANDIDAT_TEMPLATES}
+          vars={{ nom: nomOf(wa), offre: (offres.data || []).find((o) => o.id === offre)?.titre || "", entreprise: user.nom, expediteur: user.nom, date: "[date à préciser]", lien: "" }}
+          phone={waPh}
+          onOpened={({ phone }) => { try { localStorage.setItem("wa:" + wa.candidat_id, phone); } catch {} }}
+          onClose={() => setWa(null)} />}
         {offre && (
           <div className="cp-pager">
             <button className="fp-btn ep-small" disabled={q.page === 0} onClick={() => setQ({ ...q, page: q.page - 1 })}><ChevronLeft size={15} />Précédent</button>

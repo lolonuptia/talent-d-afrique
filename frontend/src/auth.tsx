@@ -13,7 +13,7 @@ function check(u: any) {
   if (u?.is_admin || norm(u?.type_profil) === "entreprise") return;
   clearTokens();
   throw new Error(norm(u?.type_profil) === "etudiant"
-    ? "Les étudiants utilisent l'application mobile Talent d'Afrique."
+    ? "Les étudiants utilisent l'application mobile TIBA."
     : "Cet espace web est pour l'instant réservé aux entreprises.");
 }
 

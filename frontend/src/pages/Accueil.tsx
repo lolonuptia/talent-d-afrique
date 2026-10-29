@@ -15,7 +15,7 @@ export default function Accueil() {
           <span className="text-blue-700">au bon moment</span>
         </h1>
         <p className="mt-4 text-lg text-slate-600">
-          Talent d'Afrique connecte étudiants, entreprises, écoles et freelances
+          TIBA connecte étudiants, entreprises, écoles et freelances
           grâce à un moteur de matching intelligent — fini le tri à l'aveugle.
         </p>
       </section>

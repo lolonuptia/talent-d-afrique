@@ -64,7 +64,7 @@ const GUIDES = {
     S(".cp-pager", "Pagination", "100 candidats par page. Les boutons Précédent et Suivant ne sont actifs que lorsqu'il y a une page avant ou après."),
     S(".cp-card", "Une carte candidat", "Le rang, les médailles or, argent et bronze pour le top 3 de la première page, le nom, le badge « Recommandé » et l'anneau de score. Vert à partir de 75, orange de 50 à 74, rouge en dessous."),
     S(".cp-status", "Changer le statut", "Le candidat est prévenu à chaque changement. La couleur de la bordure suit le statut."),
-    S(".cp-actions", "Les actions", "Profil déplie le profil complet. Score détaille les 5 critères. Entretien ouvre la planification avec ce candidat présélectionné. Écrire ouvre la conversation."),
+    S(".cp-actions", "Les actions", "Profil déplie le profil complet. Score détaille les 5 critères. Entretien ouvre la planification avec ce candidat présélectionné. Écrire ouvre la conversation. WhatsApp ouvre WhatsApp avec un message prérempli : le numéro vient du profil du candidat s'il l'a partagé, sinon vous le saisissez. Vous appuyez vous-même sur Envoyer."),
     S(".cp-kanban", "Le Kanban", "Glissez une carte d'une colonne à l'autre pour changer son statut. Chaque carte garde ses actions.", "Passez en vue Kanban avec le bouton en haut, puis glissez une carte."),
   ] },
 
@@ -135,6 +135,74 @@ const GUIDES = {
     S(".ob-phase", "Les étapes", "Elles se cochent toutes seules à partir de vos vraies données. Chaque étape a un bouton qui mène à l'action."),
   ] },
 
+  "shell-admin": { title: "L'interface admin", about: "Menu, recherche, thème, profil", steps: [
+    S(".side", "Le menu d'administration", "Tableau de bord, Utilisateurs, Offres, Outils, Journal et Mon compte. La page ouverte est surlignée en vert.", "Cliquez sur un élément du menu pour changer de page."),
+    S(".side-toggle", "Réduire le menu", "Ce bouton passe le menu en mode icônes pour gagner de la place. Votre choix est mémorisé."),
+    S(".crumb", "Où suis-je ?", "Le fil d'Ariane rappelle la page actuelle."),
+    S(".tsearch", "Aller à…", "Tapez le nom d'une page et validez avec Entrée pour y aller directement.", "Tapez « util » puis Entrée pour ouvrir Utilisateurs."),
+    S(".tright button.icon-btn:not([data-pg-help])", "Thème clair ou sombre", "Le bouton lune ou soleil bascule l'affichage. Le choix est mémorisé sur cet appareil."),
+    S(".profile .avatar", "Votre profil", "Ce menu donne accès à Mon compte et à la déconnexion."),
+    S("[data-pg-help]", "Ce bouton « ? »", "Il relance le guide de la page où vous êtes, autant de fois que vous le souhaitez. Le menu qu'il ouvre liste toutes les visites."),
+  ] },
+
+  "/admin": { title: "Tableau de bord admin", about: "Vue d'ensemble de la plateforme", steps: [
+    S(".fp-hero", "Votre accueil", "La salutation change selon l'heure. Les pastilles résument le nombre de comptes, d'offres actives, de candidatures et le taux de recrutement."),
+    S(".ad-alerts", "À traiter en priorité", "Une alerte orange apparaît s'il y a des comptes suspendus ou des entreprises à vérifier. Un clic ouvre la liste déjà filtrée. Le bandeau vert signifie que tout est en ordre."),
+    S(".ad-kpis", "Les chiffres clés", "Comptes par type, offres actives, candidatures, taux d'acceptation, comptes suspendus et entreprises à vérifier. Les compteurs se mettent à jour toutes les minutes."),
+    S(".ad-grid2 > article:first-child", "Inscriptions par mois", "Les 12 derniers mois. Survolez une colonne pour voir le total du mois.", "Passez la souris sur une colonne."),
+    S(".ad-donut-row", "Types de comptes", "La répartition des comptes non supprimés : étudiants, freelances, entreprises, écoles."),
+    S(".ad-grid3", "Secteurs, lieux et offres demandées", "Les entreprises par secteur, les offres par lieu, et les offres qui reçoivent le plus de candidatures."),
+    S(".ad-logs", "Dernières actions", "Les 6 dernières opérations d'administration. « Tout voir » ouvre le journal complet."),
+  ] },
+
+  "/admin/utilisateurs": { title: "Utilisateurs", about: "Rechercher et modérer les comptes", steps: [
+    S(".fp-hero", "Les comptes", "Le total de comptes s'affiche à droite du bandeau."),
+    S(".au-tiles", "Filtrer par profil", "Chaque tuile affiche le nombre de comptes d'un profil. Un clic filtre la liste, un second clic retire le filtre.", "Cliquez sur « Entreprises »."),
+    S(".au-bar .ad-search", "Rechercher", "Par nom ou par email, après une courte pause. La touche / place le curseur ici depuis n'importe où.", "Appuyez sur / puis tapez un nom."),
+    S(".au-sel", "Trier", "Plus récents, plus anciens, nom A → Z ou Z → A. Le tri s'applique aux 50 comptes de la page affichée."),
+    S(".au-seg", "Liste ou cartes", "Deux affichages, le choix est mémorisé. La liste est plus dense, les cartes sont plus lisibles sur petit écran."),
+    S(".au-pills", "Filtrer par statut", "Actifs, suspendus ou supprimés. Le petit chiffre sur « Suspendus » indique combien de comptes demandent votre attention. « Réinitialiser » efface tous les filtres."),
+    S(".au-row, .au-card", "Un compte", "L'avatar prend la couleur du profil. Le badge « admin » repère les administrateurs et l'alerte orange signale un email non confirmé. La date est relative, survolez-la pour l'heure exacte."),
+    S(".au-menu-w", "Le menu ⋯", "Voir la fiche, copier l'email, confirmer l'email, réactiver ou suspendre selon l'état du compte. Chaque action sensible demande une confirmation et est enregistrée dans le journal.", "Cliquez sur ⋯ sur une ligne."),
+    S(".ad-pager", "Pagination", "50 comptes par page. Précédent et Suivant ne sont actifs que s'il y a une page avant ou après."),
+  ] },
+
+  "/admin/utilisateurs/fiche": { title: "Fiche utilisateur", about: "Tout savoir sur un compte", steps: [
+    S(".af-back", "Retour", "Revient à la liste des utilisateurs avec vos filtres."),
+    S(".af-hero", "Identité du compte", "Le nom, l'email (avec un bouton pour le copier), le profil, le statut et la date d'inscription. Le badge « Vous » repère votre propre compte."),
+    S(".af-stats", "Les compteurs", "Offres publiées, candidatures reçues et candidatures envoyées par ce compte."),
+    S(".af-col > article:first-child", "Le profil", "Les informations renseignées par l'utilisateur. Les liens http(s) sont cliquables."),
+    S(".af-tl", "Historique des actions admin", "Toutes les opérations faites sur ce compte, de la plus récente à la plus ancienne, avec l'administrateur concerné."),
+    S(".af-side .af-acts", "Les actions", "Suspendre ou réactiver, confirmer l'email, déconnecter partout, envoyer un lien de réinitialisation, donner ou retirer le rôle admin (votre mot de passe est demandé). Sur votre propre compte, les actions sensibles sont désactivées."),
+    S(".af-danger", "Zone dangereuse", "Efface définitivement le compte et ses données, sans retour possible. Il faut taper l'email du compte et votre mot de passe. À réserver aux demandes de suppression RGPD."),
+  ] },
+
+  "/admin/offres": { title: "Modération des offres", about: "Contrôler les annonces publiées", steps: [
+    S(".fp-hero", "Les offres", "Le total d'offres, tous statuts confondus."),
+    S(".ao-tiles", "Filtrer par statut", "Toutes, actives, expirées ou archivées, avec le nombre d'offres de chaque statut. Un clic filtre, un second retire le filtre.", "Cliquez sur « Actives »."),
+    S(".au-bar .ad-search", "Rechercher", "Par titre d'offre ou par nom d'entreprise. La touche / place le curseur ici."),
+    S(".au-sel", "Trier", "Plus récentes, plus anciennes, titre A → Z ou plus de candidats. Le tri s'applique aux 50 offres de la page affichée."),
+    S(".au-seg", "Liste ou cartes", "Le choix d'affichage est mémorisé."),
+    S(".ao-row, .au-card", "Une offre", "Le titre, l'entreprise, le contrat, le lieu, le statut en couleur, le nombre de candidats et l'ancienneté."),
+    S(".ao-del", "Retirer une offre", "Ouvre une confirmation avec un motif facultatif, transmis à l'entreprise par notification. Sans candidature, l'offre est supprimée. Avec des candidatures, elle est archivée et rien n'est perdu.", "Cliquez sur la corbeille d'une offre, puis sur Annuler."),
+    S(".ad-pager", "Pagination", "50 offres par page."),
+  ] },
+
+  "/admin/outils": { title: "Outils admin", about: "Annonces et exports", steps: [
+    S(".fp-hero", "Les outils", "Communiquer avec les utilisateurs et exporter les données."),
+    S(".ad-form .ad-pills", "Choisir les destinataires", "Tous les comptes, ou un seul type : étudiants, freelances, entreprises, écoles. Seuls les comptes actifs reçoivent l'annonce."),
+    S(".ad-form", "Rédiger l'annonce", "Un titre (3 à 120 caractères) et un message (3 à 1000 caractères). L'annonce apparaît dans les notifications des utilisateurs, aucun email n'est envoyé. Une confirmation est demandée avant l'envoi.", "Tapez un titre et regardez l'aperçu à droite."),
+    S(".ad-notif", "Aperçu", "Voici à quoi ressemblera la notification reçue. Elle se met à jour pendant que vous écrivez."),
+    S(".ad-exports", "Exports CSV", "Utilisateurs et offres, lisibles dans Excel. Chaque export est enregistré dans le journal."),
+  ] },
+
+  "/admin/journal": { title: "Journal des actions", about: "Traçabilité de l'administration", steps: [
+    S(".fp-hero .fp-btn.gold", "Exporter la page", "Télécharge en CSV les lignes actuellement affichées (page et filtres en cours)."),
+    S(".ad-tools .ad-search", "Chercher dans la page", "Filtre les lignes affichées par détail, administrateur ou action. Il ne cherche pas dans les autres pages."),
+    S(".ad-grid-f", "Filtres serveur", "Filtrez par type d'action, ou par identifiant de cible : copiez-le depuis une fiche utilisateur pour voir tout l'historique d'un compte."),
+    S(".ad-logs", "Les actions", "Chaque ligne a une icône colorée, l'action, ses détails, la date et l'administrateur. Le lien de la cible ouvre la fiche de l'utilisateur concerné. Les plus récentes sont en haut."),
+    S(".ad-pager", "Pagination", "50 actions par page."),
+  ] },
   "/formulaires": { title: "Formulaires", about: "Page de démonstration", steps: [
     S(".fp-tabs", "Trois formulaires", "Publier une offre, Profil entreprise, Entretien. C'est une page de démonstration : elle n'envoie rien à l'API. Utilisez Mes offres, Profil entreprise et Entretiens pour les vraies actions."),
   ] },
@@ -142,9 +210,11 @@ const GUIDES = {
 
 const ORDER = ["shell", "/", "/offres", "/offres/nouvelle", "/candidats", "/entretiens", "/missions", "/messages", "/talents", "/notifications", "/profil", "/compte", "/guide", "/formulaires"];
 
+const ORDER_ADMIN = ["/admin", "/admin/utilisateurs", "/admin/offres", "/admin/outils", "/admin/journal", "/compte"];
 const routeKey = (p) => {
   const x = p.replace(/\/+$/, "") || "/";
   if (x === "/offres/nouvelle" || /^\/offres\/[^/]+\/modifier$/.test(x)) return "/offres/nouvelle";
+  if (/^\/admin\/utilisateurs\/[^/]+$/.test(x)) return "/admin/utilisateurs/fiche";
   return x !== "shell" && GUIDES[x] ? x : null;
 };
 
@@ -298,7 +368,8 @@ export default function PageGuide() {
     return () => { clearInterval(t); if (box) box.remove(); setSlot(null); };
   }, []);
 
-  const start = (k) => {
+  const start = (k0) => {
+    const k = k0 === "shell" && user?.is_admin ? "shell-admin" : k0;
     if (!GUIDES[k]) return;
     setMenu(false); setPrompt(false); setTour(k);
     update((c) => ({ seen: { ...c.seen, [k]: 1 } }));
@@ -321,7 +392,7 @@ export default function PageGuide() {
   // proposition à la première visite d'une page
   useEffect(() => {
     setPrompt(false);
-    if (tour || !pageKey || !st.auto || st.seen[pageKey] || !welcomed(user)) return;
+    if (tour || !pageKey || !st.auto || st.seen[pageKey] || (!user?.is_admin && !welcomed(user))) return;
     try { if (sessionStorage.getItem("pg-later:" + pageKey)) return; } catch {}
     const t = setTimeout(() => setPrompt(true), 1300);
     return () => clearTimeout(t);
@@ -362,7 +433,7 @@ export default function PageGuide() {
             </button>
             <p className="pg-sub">Toutes les visites</p>
             <ul className="pg-list">
-              {ORDER.filter((k) => k !== "shell").map((k) => (
+              {(user?.is_admin ? ORDER_ADMIN : ORDER).filter((k) => k !== "shell").map((k) => (
                 <li key={k}>
                   <button onClick={() => go(k)} className={k === pageKey ? "on" : ""}>
                     <span className={"pg-check" + (st.seen[k] ? " ok" : "")}>{st.seen[k] && <Check size={12} />}</span>

@@ -5,4 +5,4 @@ router = APIRouter()
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "message": "L'API Talent d'Afrique fonctionne"}
+    return {"status": "ok", "message": "L'API TIBA fonctionne"}

@@ -47,7 +47,7 @@ def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> No
     try:
         resend.Emails.send(
             {
-                "from": "Talent d'Afrique <notifications@talentdafrique.com>",
+                "from": "TIBA <notifications@talentdafrique.com>",
                 "to": [destinataire.email],
                 "subject": sujet,
                 "html": contenu_html,

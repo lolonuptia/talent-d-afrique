@@ -25,7 +25,7 @@ const PLACE = {
 
 export default function EntretiensPro() {
   const [sp] = useSearchParams();
-  const [f, setF] = useState({ candidature_id: sp.get("cand") || "", date: "", time: "", duree: "30", mode: C.modes[0], lieu: "", message: "" });
+  const [f, setF] = useState({ candidature_id: sp.get("cand") || "", date: sp.get("date") || "", time: "", duree: "30", mode: C.modes[0], lieu: "", message: "" });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rep, setRep] = useState(null);

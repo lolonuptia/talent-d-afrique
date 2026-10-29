@@ -388,3 +388,18 @@
 .mi-overlay{position:fixed;inset:0;z-index:2000;background:rgba(3,20,14,.55);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;overflow-y:auto}
 .mi-modal{width:100%;max-width:560px;max-height:92vh;overflow-y:auto}
 @media (min-width:700px){.op-tools{flex-direction:row;align-items:center}.op-tools .mp-search{flex:1 1 260px}.mi-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ===== correctif Mon compte : avatar du bandeau + boutons icones ===== */
+.fp .fp-hero .fp-logo.lg{
+  flex:none;align-self:center;display:grid;place-items:center;
+  width:76px;height:76px;min-width:76px;min-height:76px;max-width:76px;max-height:76px;aspect-ratio:1/1;
+  padding:0;border-radius:50%;font-size:26px;font-weight:800;letter-spacing:.02em;line-height:1;color:#fff;
+  background:linear-gradient(135deg,#e3b023,#0f9d73)!important;
+  border:3px solid rgba(255,255,255,.35);box-shadow:0 14px 30px -12px rgba(0,0,0,.6)
+}
+.fp .fp-hero{align-items:center}
+.fp .fp-hero h1{margin:0}
+.fp .fp-hero p{margin-top:6px}
+.fp .fp-tabs button{min-height:0;line-height:1.2}
+.fp .fp-pw button{padding:0;min-height:0;line-height:0}
+.fp .fp-pw button svg{width:auto;height:auto;max-width:none}
+.fp .fp-pw button:hover{transform:none}

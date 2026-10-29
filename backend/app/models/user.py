@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, String, false
 
 from app.core.database import Base
 from app.core.types import GUID
@@ -30,6 +30,11 @@ class User(Base):
     deleted_at = Column(DateTime, nullable=True)  # suppression logique (soft delete)
 
     is_active = Column(Boolean, default=True)
+
+    # contact WhatsApp (facultatif)
+    telephone = Column(String, nullable=True)
+    # le talent autorise les entreprises aupres desquelles il postule a voir son numero
+    telephone_partage = Column(Boolean, nullable=False, default=False, server_default=false())
 
     email_verifie_at = Column(DateTime, nullable=True)
     mot_de_passe_modifie_at = Column(DateTime, nullable=True)  # invalide les anciennes sessions

@@ -51,8 +51,8 @@ if settings.environment != "test":
         print(f"[MIGRATION] ignoree : {exc}")
 
 app = FastAPI(
-    title="Talent d'Afrique API",
-    description="API du moteur de matching et de la plateforme Talent d'Afrique",
+    title="TIBA API",
+    description="API du moteur de matching et de la plateforme TIBA",
     version="0.1.0",
 )
 
@@ -89,4 +89,4 @@ app.include_router(missions.router, prefix="/api/missions", tags=["missions"])
 
 @app.get("/")
 def root():
-    return {"message": "Bienvenue sur l'API Talent d'Afrique"}
+    return {"message": "Bienvenue sur l'API TIBA"}

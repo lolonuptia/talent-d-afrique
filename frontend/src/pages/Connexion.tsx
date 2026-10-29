@@ -54,7 +54,7 @@ export default function Connexion() {
 
       <div className="mx-auto max-w-md px-6 py-16">
         <h1 className="text-2xl font-bold text-slate-900">Connexion</h1>
-        <p className="mt-2 text-slate-600">Accédez à votre espace Talent d'Afrique.</p>
+        <p className="mt-2 text-slate-600">Accédez à votre espace TIBA.</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
           {erreurServeur && (

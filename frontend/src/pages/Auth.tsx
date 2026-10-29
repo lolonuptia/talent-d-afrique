@@ -10,7 +10,7 @@ function Shell({ title, sub, children }: { title: string; sub?: string; children
   return (
     <div className="x-auth">
       <aside className="x-auth-art">
-        <div className="x-auth-logo"><span className="logo-mark">T</span>Talent d'Afrique</div>
+        <div className="x-auth-logo"><span className="logo-mark">T</span>TIBA</div>
         <h2>Recrutez les meilleurs talents africains.</h2>
         <p>Publiez vos offres, recevez des candidatures classées et planifiez vos entretiens depuis un seul endroit.</p>
         <ul>

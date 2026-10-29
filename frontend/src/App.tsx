@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench, ClipboardList, Compass } from "lucide-react";
+import { Bell, Briefcase, Building2, CalendarDays, ChevronsLeft, ChevronsRight, LayoutDashboard, LogOut, MessageSquare, Moon, ScrollText, Search, Settings, Sun, Users, Wrench, ClipboardList, Compass, CalendarRange } from "lucide-react";
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
+import "./shell-pro/logout.css";
 import { api, list } from "./api";
 import { useAuth } from "./auth";
 import { useLoad } from "./ui";
-import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from "./pages/Auth";
+import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from "./shell-pro/AuthPro";
 import Overview from "./pro/OverviewPro";
 import OffresList from "./pro/OffresPro";
 import OffreForm from "./forms-pro/OffreFormPro";
@@ -16,14 +19,19 @@ import Talents from "./pro/TalentsPro";
 import Notifications from "./pro/NotificationsPro";
 import Compte from "./forms-pro/ComptePro";
 import Profil from "./forms-pro/ProfilPro";
-import { Cgu, Confidentialite } from "./pages/Legal";
-import { AdminHome, AdminOffres, AdminUsers } from "./pages/Admin";
-import { AdminJournalPlus, AdminOutils, AdminUserDetail } from "./pages/AdminPlus";
+import { Cgu, Confidentialite } from "./shell-pro/LegalPro";
+import { AdminHome, AdminOutils, AdminJournalPlus } from "./admin-pro/AdminPro";
+import { AdminUserDetail } from "./admin-pro/AdminUserDetailPro";
+import { AdminUsers } from "./admin-pro/AdminUsersPro";
+import { AdminOffres } from "./admin-pro/AdminOffresPro";
+
 import GuidePro, { OnboardingWidget } from "./onboarding/OnboardingPro";
 import PageGuide from "./onboarding/PageGuide";
 import FormsPro from "./forms-pro/FormsPro";
 
 import Missions from "./pro/MissionsPro";
+
+import Calendrier from "./pro/CalendrierPro";
 
 const ADMIN_NAV: [string, string][] = [
   ["/admin", "Tableau de bord"], ["/admin/utilisateurs", "Utilisateurs"], ["/admin/offres", "Offres"],
@@ -47,11 +55,35 @@ function VerifBanner({ user }: { user: any }) {
 
 const ICON: Record<string, ReactNode> = {
   "/": <LayoutDashboard size={18} />, "/offres": <Briefcase size={18} />, "/candidats": <Users size={18} />,
-  "/entretiens": <CalendarDays size={18} />, "/missions": <ClipboardList size={18} />, "/messages": <MessageSquare size={18} />, "/talents": <Search size={18} />,
+  "/entretiens": <CalendarDays size={18} />, "/calendrier": <CalendarRange size={18} />, "/missions": <ClipboardList size={18} />, "/messages": <MessageSquare size={18} />, "/talents": <Search size={18} />,
   "/notifications": <Bell size={18} />, "/profil": <Building2 size={18} />, "/guide": <Compass size={18} />, "/formulaires": <Briefcase size={18} />, "/compte": <Settings size={18} />,
   "/admin": <LayoutDashboard size={18} />, "/admin/utilisateurs": <Users size={18} />, "/admin/offres": <Briefcase size={18} />,
   "/admin/outils": <Wrench size={18} />, "/admin/journal": <ScrollText size={18} />,
 };
+
+function LogoutConfirm({ name, onCancel, onConfirm }: { name?: string; onCancel: () => void; onConfirm: () => Promise<void> | void }) {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onCancel(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [busy, onCancel]);
+  const go = async () => { setBusy(true); try { await onConfirm(); } finally { setBusy(false); } };
+  return createPortal(
+    <div className="lo-ov" onClick={() => !busy && onCancel()}>
+      <div className="lo-box" role="alertdialog" aria-modal="true" aria-labelledby="lo-t" onClick={(e) => e.stopPropagation()}>
+        <span className="lo-ico"><LogOut size={22} /></span>
+        <h2 id="lo-t">Se déconnecter ?</h2>
+        <p>{name ? name + ", vous" : "Vous"} allez quitter votre session sur cet appareil. Vous pourrez vous reconnecter à tout moment.</p>
+        <div className="lo-f">
+          <button type="button" className="lo-no" disabled={busy} onClick={onCancel}>Rester connecté</button>
+          <button type="button" className="lo-yes" disabled={busy} onClick={go} autoFocus>{busy && <Loader2 size={16} className="lo-spin" />}Se déconnecter</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 function Layout() {
   const { user, loading, logout } = useAuth();
@@ -60,6 +92,7 @@ function Layout() {
   const [mini, setMini] = useState(() => localStorage.getItem("mini") === "1");
   const [menu, setMenu] = useState(false);
   const [q, setQ] = useState("");
+  const [askOut, setAskOut] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const notifs = useLoad(
     () => (user ? list("/notifications").catch(() => [] as any[]) : Promise.resolve([] as any[])),
@@ -84,11 +117,11 @@ function Layout() {
   if (!user.is_admin && pathname.startsWith("/admin")) return <Navigate to="/" replace />;
   const unread = (notifs.data || []).filter((n: any) => !n.lue).length;
   const nav: [string, string][] = user.is_admin ? ADMIN_NAV : [
-    ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"], ["/missions", "Missions"],
+    ["/", "Vue d'ensemble"], ["/offres", "Mes offres"], ["/candidats", "Candidats"], ["/entretiens", "Entretiens"], ["/calendrier", "Calendrier"], ["/missions", "Missions"],
     ["/messages", "Messages"], ["/talents", "Talents"], ["/notifications", "Notifications"],
-    ["/profil", "Profil entreprise"], ["/guide", "Guide"], ["/formulaires", "Formulaires"], ["/compte", "Mon compte"],
+    ["/profil", "Profil entreprise"], ["/guide", "Guide"], ["/compte", "Mon compte"],
   ];
-  const current = nav.find(([to]) => (to === "/" ? pathname === "/" : pathname.startsWith(to)))?.[1] ?? "";
+  const current = [...nav].filter(([to]) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"))).sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? "";
   const matches = q.trim() ? nav.filter(([, l]) => l.toLowerCase().includes(q.trim().toLowerCase())) : [];
   const ini = (user.nom || "?").split(" ").filter(Boolean).map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
@@ -96,22 +129,22 @@ function Layout() {
     <div className={"app" + (mini ? " mini" : "")}>
       <aside className="side">
         <div className="side-top">
-          <div className="logo"><span className="logo-mark">T</span><span className="nl">Talent d'Afrique</span></div>
+          <div className="logo"><span className="logo-mark">T</span><span className="nl">TIBA</span></div>
           <button className="side-toggle" onClick={() => setMini(!mini)} title="Réduire / agrandir le menu">{mini ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}</button>
         </div>
         <div className="who nl">{user.nom}</div>
         {nav.map(([to, l]) => (
-          <NavLink key={to} to={to} end={to === "/"} title={l}>
+          <NavLink key={to} to={to} end={to === "/" || to === "/admin"} title={l}>
             <span className="ni">{ICON[to] ?? "•"}</span>
             <span className="nl">{l}</span>
             {to === "/notifications" && unread > 0 && <span className="b nb">{unread}</span>}
           </NavLink>
         ))}
-        <button className="side-out" onClick={logout} title="Se déconnecter"><span className="ni"><LogOut size={18} /></span><span className="nl">Se déconnecter</span></button>
+        <button className="side-out" onClick={() => setAskOut(true)} title="Se déconnecter"><span className="ni"><LogOut size={18} /></span><span className="nl">Se déconnecter</span></button>
       </aside>
       <div className="shell">
         <header className="topbar">
-          <div className="crumb"><span>Talent d'Afrique</span><i>/</i><b>{current}</b></div>
+          <div className="crumb"><span>TIBA</span><i>/</i><b>{current}</b></div>
           <div className="tsearch">
             <input
               placeholder="Aller à… (offres, candidats, messages)"
@@ -139,7 +172,7 @@ function Layout() {
                     <div className="menu-h"><strong>{user.nom}</strong><small>{user.email}</small></div>
                     {!user.is_admin && <Link to="/profil"><Building2 size={16} /> Profil entreprise</Link>}
                     <Link to="/compte"><Settings size={16} /> Mon compte</Link>
-                    <button onClick={logout}><LogOut size={16} /> Se déconnecter</button>
+                    <button onClick={() => { setMenu(false); setAskOut(true); }}><LogOut size={16} /> Se déconnecter</button>
                   </div>
                 </>
               )}
@@ -147,8 +180,9 @@ function Layout() {
           </div>
         </header>
         <main className="main"><VerifBanner user={user} /><Outlet /></main>
+        {askOut && <LogoutConfirm name={user.nom} onCancel={() => setAskOut(false)} onConfirm={logout} />}
         {!user.is_admin && <OnboardingWidget />}
-        {!user.is_admin && <PageGuide />}
+        <PageGuide />
       </div>
     </div>
   );
@@ -180,6 +214,7 @@ export default function App() {
         <Route path="/offres/:id/modifier" element={<OffreForm key="edit" />} />
         <Route path="/candidats" element={<Candidats />} />
         <Route path="/entretiens" element={<Entretiens />} />
+        <Route path="/calendrier" element={<Calendrier />} />
         <Route path="/missions" element={<Missions />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/talents" element={<Talents />} />

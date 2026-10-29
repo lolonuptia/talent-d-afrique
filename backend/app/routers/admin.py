@@ -279,6 +279,19 @@ def supprimer_offre_moderation(
     return {"message": message}
 
 
+@router.get("/offres/compteurs")
+def compteurs_offres(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Nombre d'offres par statut, pour les tuiles de la moderation."""
+    expirer_offres_perimees(db)
+    res = {"active": 0, "expiree": 0, "archivee": 0}
+    for statut, n in db.query(Offre.statut, func.count(Offre.id)).group_by(Offre.statut).all():
+        res[str(statut)] = int(n)
+    res["total"] = sum(res.values())
+    return res
+
 @router.get("/statistiques", response_model=StatistiquesGlobales)
 def statistiques_globales(
     admin: User = Depends(get_current_admin),

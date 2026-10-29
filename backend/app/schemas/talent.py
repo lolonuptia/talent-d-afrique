@@ -31,3 +31,4 @@ class CandidatDetailOut(TalentDetailOut):
 
     experiences: str | None = None
     a_un_cv: bool = False
+    telephone: str | None = None  # uniquement si le talent a autorise le partage

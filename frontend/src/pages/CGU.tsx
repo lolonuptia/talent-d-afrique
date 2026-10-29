@@ -16,7 +16,7 @@ export default function CGU() {
           <section>
             <h2 className="text-xl font-semibold text-blue-700">1. Objet</h2>
             <p className="mt-2">
-              Talent d'Afrique est une plateforme mettant en relation étudiants,
+              TIBA est une plateforme mettant en relation étudiants,
               entreprises, écoles et freelances autour d'un moteur de matching.
               [Contenu à finaliser avant mise en production.]
             </p>

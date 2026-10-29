@@ -58,6 +58,10 @@ def update_current_user(
     db: Session = Depends(get_db),
 ):
     email_change = False
+    if "telephone" in payload.model_fields_set:
+        current_user.telephone = (payload.telephone or "").strip() or None
+    if payload.telephone_partage is not None:
+        current_user.telephone_partage = payload.telephone_partage
     if payload.nom is not None:
         current_user.nom = payload.nom
     if payload.email is not None:

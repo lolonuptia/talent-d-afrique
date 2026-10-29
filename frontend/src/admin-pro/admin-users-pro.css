@@ -1,0 +1,92 @@
+/* admin-users-pro : page Utilisateurs (charge apres admin-pro.css) */
+.fp .au-hero-side{display:flex;flex-direction:column;align-items:flex-end;background:rgba(255,255,255,.14);backdrop-filter:blur(6px);padding:10px 18px;border-radius:16px}
+.fp .au-hero-side b{font-size:28px;font-weight:800;line-height:1}
+.fp .au-hero-side small{font-size:12px;opacity:.85}
+
+.fp .au-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fp .au-tile{display:flex;align-items:center;gap:12px;padding:14px;text-align:left;border-radius:18px;background:var(--fp-card);border:1px solid var(--fp-border);box-shadow:var(--fp-shadow);transition:.18s;position:relative}
+.fp .au-tile:hover{transform:translateY(-2px);border-color:var(--c)}
+.fp .au-tile.on{border-color:var(--c);box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 28%,transparent)}
+.fp .au-tile>span{width:40px;height:40px;flex:none;border-radius:13px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
+.fp .au-tile b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.fp .au-tile small{display:block;margin-top:3px;font-size:12px;color:var(--fp-muted)}
+
+.fp .au-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fp .au-bar .ad-search{flex:1 1 260px}
+.fp .au-sel{height:44px;border-radius:13px;padding:0 12px;background:var(--fp-soft);color:var(--fp-text);border:1px solid var(--fp-border);font:inherit;font-size:13.5px;font-weight:600}
+.fp .au-seg{display:inline-flex;padding:4px;border-radius:13px;background:var(--fp-soft);border:1px solid var(--fp-border)}
+.fp .au-seg button{width:38px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--fp-muted)}
+.fp .au-seg button.on{background:linear-gradient(135deg,#0a5a42,#0f9d73);color:#fff}
+.fp .au-pills em{font-style:normal;margin-left:6px;font-size:11.5px;opacity:.8}
+.fp .au-reset{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--fp-g2);padding:6px 10px;border-radius:99px;background:var(--fp-track)}
+
+/* liste */
+.fp .au-table{padding:0}
+.fp .au-head,.fp .au-row{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,.9fr) minmax(0,1fr) minmax(0,1fr) 92px;gap:12px;align-items:center;padding:0 18px}
+.fp .au-head{height:46px;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--fp-muted);border-bottom:1px solid var(--fp-border)}
+.fp .au-row{min-height:68px;padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--fp-border);animation:ad-in .35s both;transition:background .15s}
+.fp .au-row:last-child{border-bottom:0;border-radius:0 0 22px 22px}
+.fp .au-row:hover{background:var(--fp-soft)}
+.fp .au-c-who{display:flex;align-items:center;gap:12px;min-width:0}
+.fp .au-id{min-width:0}
+.fp .au-id b{display:flex;align-items:center;gap:6px;font-size:14.5px;flex-wrap:wrap}
+.fp .au-id small{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--fp-muted);word-break:break-all}
+.fp .au-id em{display:inline-flex;align-items:center;gap:3px;font-style:normal;font-weight:700;color:#d97706}
+.fp .au-c-tags{display:contents}
+.fp .au-st{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--c)}
+.fp .au-st i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent)}
+.fp .au-c-date{font-size:12.5px;color:var(--fp-muted)}
+.fp .au-c-act{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.fp .au-ico-btn{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--fp-soft);border:1px solid var(--fp-border);color:var(--fp-text);text-decoration:none;transition:.18s}
+.fp .au-ico-btn:hover{border-color:var(--fp-g2);color:var(--fp-g2)}
+
+/* menu */
+.fp .au-menu-w{position:relative}
+.fp .au-pop{position:absolute;right:0;top:42px;z-index:60;min-width:216px;padding:6px;border-radius:14px;background:var(--fp-card);border:1px solid var(--fp-border);box-shadow:0 22px 44px -16px rgba(0,0,0,.45);animation:ad-in .15s both}
+.fp .au-pop.up{top:auto;bottom:42px}
+.fp .au-pop a,.fp .au-pop button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border-radius:9px;font-size:13px;font-weight:600;text-align:left;text-decoration:none;color:var(--fp-text)}
+.fp .au-pop a:hover,.fp .au-pop button:hover{background:var(--fp-soft);color:var(--fp-g2)}
+.fp .au-pop .danger{color:#dc2626}
+.fp .au-pop .danger:hover{background:rgba(220,38,38,.1);color:#dc2626}
+.fp .au-pop hr{border:0;border-top:1px solid var(--fp-border);margin:4px 0}
+
+/* cartes */
+.fp .au-cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.fp .au-card{display:flex;flex-direction:column;gap:12px;padding:18px;border-top:4px solid var(--c);animation:ad-in .35s both;transition:.2s}
+.fp .au-card:hover{transform:translateY(-3px)}
+.fp .au-card-top{display:flex;gap:12px;align-items:center;min-width:0}
+.fp .au-card-tags{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.fp .au-card-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:4px;font-size:12px;color:var(--fp-muted)}
+
+.fp .au-count{font-size:12.5px;color:var(--fp-muted)}
+
+@media(min-width:760px){.fp .au-tiles{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:899px){
+  .fp .au-head{display:none}
+  .fp .au-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"who act" "tags tags" "date date";gap:8px 10px;padding:14px 16px}
+  .fp .au-c-who{grid-area:who}
+  .fp .au-c-act{grid-area:act}
+  .fp .au-c-tags{display:flex;grid-area:tags;gap:10px;align-items:center;flex-wrap:wrap}
+  .fp .au-c-date{grid-area:date}
+}
+@media(prefers-reduced-motion:reduce){.fp .au-row,.fp .au-card,.fp .au-pop{animation:none}}
+/* ===== correctif : neutralise button{padding:9px 18px;min-height:40px} et select{width:100%} de index.css ===== */
+.fp .au-ico-btn,.fp .au-seg button,.fp .ad-search button{padding:0;min-height:0;min-width:0;line-height:0}
+.fp .au-ico-btn{width:36px;height:36px;flex:none}
+.fp .au-seg button{width:38px;height:34px}
+.fp .ad-search button{width:26px;height:26px;flex:none}
+.fp .au-ico-btn svg,.fp .au-seg button svg,.fp .ad-search button svg{width:auto;height:auto;max-width:none;flex:none}
+.fp .au-ico-btn:hover{background:var(--fp-soft);transform:none}
+.fp .au-seg button:hover{background:transparent;transform:none}
+.fp .au-seg button.on:hover{background:linear-gradient(135deg,#0a5a42,#0f9d73)}
+.fp .au-sel{width:auto;min-width:150px;flex:none;padding:0 34px 0 12px;min-height:44px}
+.fp .au-pills button{min-height:0}
+.fp .au-tile{min-height:0;padding:14px;width:100%}
+.fp .au-reset{min-height:0;padding:6px 10px}
+.fp .au-c-act{flex:none}
+/* ===== correctif : le menu d'actions doit passer au-dessus des cartes/lignes voisines ===== */
+.fp .au-row,.fp .au-card{position:relative;animation-fill-mode:backwards}
+.fp .au-card:hover{transform:none}
+.fp .au-row:has(.au-pop),.fp .au-card:has(.au-pop){z-index:60}
+.fp .au-pop{z-index:70}
+.fp .au-table{overflow:visible}

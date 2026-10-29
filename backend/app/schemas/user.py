@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
@@ -17,6 +18,18 @@ def _max_72_octets(v: str) -> str:
 
 MotDePasseSaisi = Annotated[str, AfterValidator(_max_72_octets)]
 MotDePasse = Annotated[str, Field(min_length=8), AfterValidator(_max_72_octets)]
+
+
+def _valider_telephone(v: str) -> str:
+    v = v.strip()
+    if not v:
+        return ""
+    if not re.fullmatch(r"\+?[0-9 ().\-]{6,25}", v) or len(re.sub(r"\D", "", v)) < 8:
+        raise ValueError("Numero de telephone invalide.")
+    return v
+
+
+Telephone = Annotated[str, AfterValidator(_valider_telephone)]
 
 
 class UserCreate(BaseModel):
@@ -41,6 +54,8 @@ class UserUpdate(BaseModel):
     nom: str | None = Field(default=None, min_length=2)
     email: EmailStr | None = None
     mot_de_passe_actuel: MotDePasseSaisi | None = None
+    telephone: Telephone | None = None
+    telephone_partage: bool | None = None
 
     _norm_email = field_validator("email", mode="before")(_normaliser_email)
 
@@ -52,6 +67,8 @@ class UserOut(BaseModel):
     type_profil: str
     is_admin: bool = False
     email_verifie: bool = True
+    telephone: str | None = None
+    telephone_partage: bool = False
     created_at: datetime
 
     class Config:

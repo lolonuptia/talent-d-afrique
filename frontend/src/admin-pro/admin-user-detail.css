@@ -1,0 +1,70 @@
+/* fiche utilisateur admin */
+.fp .af-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--fp-g2);text-decoration:none;align-self:flex-start}
+.fp .af-hero{position:relative;overflow:hidden;display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:26px 24px;border-radius:24px;color:#fff;background:linear-gradient(135deg,#052e22 0%,#0a5a42 55%,#0f9d73 120%);box-shadow:0 18px 40px -18px rgba(6,64,47,.7)}
+.fp .af-hero::before{content:"";position:absolute;right:-70px;top:-90px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c) 70%,#e3b023) 0%,transparent 65%);opacity:.55;pointer-events:none}
+.fp .af-ava{position:relative;flex:none;width:88px;height:88px;min-width:88px;min-height:88px;max-width:88px;max-height:88px;aspect-ratio:1/1;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:800;letter-spacing:.02em;color:#fff;border:4px solid rgba(255,255,255,.35);box-shadow:0 14px 30px -12px rgba(0,0,0,.6)}
+.fp .af-id{position:relative;flex:1;min-width:230px}
+.fp .af-id h1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0;font-family:inherit;font-size:clamp(22px,4vw,30px);font-weight:800;letter-spacing:-.02em;color:#fff}
+.fp .af-pill{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.2);color:#fff}
+.fp .af-pill.admin{background:#a855f7}
+.fp .af-pill.you{background:#e3b023;color:#2a2005}
+.fp .af-mail{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 12px;font-size:14px;opacity:.92}
+.fp .af-mail button{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.16);color:#fff}
+.fp .af-mail button:hover{background:rgba(255,255,255,.3)}
+.fp .af-warn{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#fde68a}
+.fp .af-chips{display:flex;gap:8px;flex-wrap:wrap}
+.fp .af-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.16)}
+.fp .af-chip i{width:8px;height:8px;border-radius:50%;background:var(--d,#fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--d,#fff) 30%,transparent)}
+
+.fp .af-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fp .af-stat{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;background:var(--fp-card);border:1px solid var(--fp-border);box-shadow:var(--fp-shadow)}
+.fp .af-stat>span{width:40px;height:40px;flex:none;border-radius:13px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
+.fp .af-stat b{display:block;font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.fp .af-stat small{display:block;margin-top:3px;font-size:12px;color:var(--fp-muted)}
+.fp .af-stat.zero b{opacity:.45}
+
+.fp .af-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);align-items:start}
+.fp .af-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fp .af-side{position:sticky;top:84px;display:flex;flex-direction:column;gap:12px}
+.fp .af-h{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:15.5px;font-weight:800}
+.fp .af-h svg{color:var(--fp-g2)}
+.fp .af-h small{margin-left:auto;font-size:12px;font-weight:600;color:var(--fp-muted)}
+
+.fp .af-dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.fp .af-dl>div{padding:11px 13px;border-radius:13px;background:var(--fp-soft);min-width:0}
+.fp .af-dl dt{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--fp-muted)}
+.fp .af-dl dd{margin:3px 0 0;font-size:13.5px;font-weight:600;word-break:break-word}
+.fp .af-dl dd a{color:var(--fp-g2)}
+.fp .af-cv{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12.5px;font-weight:700;color:var(--fp-g2)}
+
+.fp .af-offers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fp .af-offers li{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:13px;background:var(--fp-soft);font-size:13.5px}
+.fp .af-offers span:first-child{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp .af-offers b{font-size:12.5px;color:var(--fp-muted);white-space:nowrap}
+
+.fp .af-tl{list-style:none;margin:0;padding:0;position:relative}
+.fp .af-tl::before{content:"";position:absolute;left:17px;top:8px;bottom:8px;width:2px;background:var(--fp-border)}
+.fp .af-tl li{position:relative;display:flex;gap:14px;padding:8px 0}
+.fp .af-tl-ico{position:relative;z-index:1;width:36px;height:36px;flex:none;border-radius:50%;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 15%,var(--fp-card));border:2px solid var(--fp-card)}
+.fp .af-tl b{font-size:14px}
+.fp .af-tl p{margin:2px 0 0;font-size:13px;color:var(--fp-muted);word-break:break-word}
+.fp .af-tl small{display:block;margin-top:3px;font-size:11.5px;color:var(--fp-muted)}
+
+.fp .af-act{display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;border-radius:13px;font-size:13.5px;font-weight:700;text-align:left;background:var(--fp-soft);border:1px solid var(--fp-border);color:var(--fp-text);transition:.18s}
+.fp .af-act:hover{border-color:var(--fp-g2);color:var(--fp-g2);transform:translateY(-1px)}
+.fp .af-act.warn:hover{border-color:#ef4444;color:#ef4444}
+.fp .af-acts{display:flex;flex-direction:column;gap:8px}
+.fp .af-sep{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--fp-muted);margin:8px 0 0}
+.fp .af-danger{border-color:rgba(220,38,38,.35);background:color-mix(in srgb,#dc2626 6%,var(--fp-card))}
+.fp .af-danger .af-act{color:#dc2626;border-color:rgba(220,38,38,.3);background:transparent}
+.fp .af-danger .af-act:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+.fp .af-note{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--fp-muted)}
+.fp .af-note svg{flex:none;margin-top:2px;color:var(--fp-g2)}
+
+@media(min-width:1000px){.fp .af-grid{grid-template-columns:minmax(0,1fr) 320px}}
+@media(max-width:560px){.fp .af-stats{grid-template-columns:1fr}.fp .af-hero{padding:22px 18px}}
+/* ===== correctif fiche : boutons icones ===== */
+.fp .af-mail button{padding:0;min-height:0;width:28px;height:28px;line-height:0;flex:none}
+.fp .af-mail button svg{width:auto;height:auto;max-width:none}
+.fp .af-mail button:hover{transform:none}
+.fp .af-act{min-height:0;width:100%}

@@ -6,6 +6,7 @@ import { api, setTokens } from "../api";
 import { useAuth } from "../auth";
 import { Err } from "../ui";
 import { Field } from "./FormsPro";
+import { normPhone } from "../whatsapp/wa";
 import "./forms-pro.css";
 
 const strength = (p) => [p.length >= 8, /[A-Z]/.test(p) && /[a-z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
@@ -27,16 +28,17 @@ export default function ComptePro() {
   const [tab, setTab] = useState("info");
 
   // ---- infos
-  const [f, setF] = useState({ nom: user.nom || "", email: user.email || "" });
+  const [f, setF] = useState({ nom: user.nom || "", email: user.email || "", telephone: user.telephone || "", telephone_partage: !!user.telephone_partage });
   const [mdpActuel, setMdpActuel] = useState("");
   const [triedInfo, setTriedInfo] = useState(false);
   const [busyInfo, setBusyInfo] = useState(false);
   const [eInfo, setEInfo] = useState(null);
   const emailChanged = f.email !== user.email;
-  const dirty = f.nom !== user.nom || emailChanged;
+  const dirty = f.nom !== user.nom || emailChanged || (f.telephone || "") !== (user.telephone || "") || !!f.telephone_partage !== !!user.telephone_partage;
   const errInfo = {};
   if (f.nom.trim().length < 2) errInfo.nom = "Le nom doit contenir au moins 2 caractères.";
   if (!/^\S+@\S+\.\S+$/.test(f.email)) errInfo.email = "Adresse email invalide.";
+  if (f.telephone && !normPhone(f.telephone)) errInfo.telephone = "Numéro invalide (ex : 77 123 45 67 ou +221 77 123 45 67).";
   if (emailChanged && !mdpActuel) errInfo.mdp = "Requis pour confirmer le changement d'email.";
   const EI = triedInfo ? errInfo : {};
 
@@ -45,7 +47,9 @@ export default function ComptePro() {
     if (Object.keys(errInfo).length) return;
     setBusyInfo(true);
     try {
-      const u = await api("/users/me", "PATCH", emailChanged ? { ...f, mot_de_passe_actuel: mdpActuel } : f);
+      const body = { ...f, telephone: f.telephone ? "+" + normPhone(f.telephone) : "" };
+      const u = await api("/users/me", "PATCH", emailChanged ? { ...body, mot_de_passe_actuel: mdpActuel } : body);
+      setF({ nom: u.nom, email: u.email, telephone: u.telephone || "", telephone_partage: !!u.telephone_partage });
       setUser(u); setMdpActuel(""); setTriedInfo(false); toast.success("Informations mises à jour");
     } catch (x) { setEInfo(x); toast.error(x.message); }
     setBusyInfo(false);
@@ -125,6 +129,15 @@ export default function ComptePro() {
               <Field label="Nom" required error={EI.nom}><input className="fp-input" value={f.nom} onChange={(x) => setF({ ...f, nom: x.target.value })} /></Field>
               <Field label="Email" required error={EI.email}><input className="fp-input" type="email" value={f.email} onChange={(x) => setF({ ...f, email: x.target.value })} /></Field>
             </div>
+            <Field label="Numéro WhatsApp" error={EI.telephone} hint="Facultatif. Sans indicatif, +221 est ajouté.">
+              <input className="fp-input" inputMode="tel" autoComplete="tel" placeholder="77 123 45 67" value={f.telephone || ""} onChange={(x) => setF({ ...f, telephone: x.target.value })} />
+            </Field>
+            {user.type_profil !== "entreprise" && !user.is_admin && (
+              <label className="fp-check" style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, lineHeight: 1.45 }}>
+                <input type="checkbox" style={{ marginTop: 3 }} disabled={!f.telephone} checked={!!f.telephone_partage && !!f.telephone} onChange={(x) => setF({ ...f, telephone_partage: x.target.checked })} />
+                <span>J'autorise les entreprises auxquelles je postule à voir mon numéro pour me contacter sur WhatsApp.</span>
+              </label>
+            )}
             {emailChanged && (
               <Field label="Mot de passe actuel" required error={EI.mdp} hint="Nécessaire pour changer votre adresse email.">
                 <PwInput value={mdpActuel} onChange={(x) => setMdpActuel(x.target.value)} autoComplete="current-password" />
@@ -133,7 +146,7 @@ export default function ComptePro() {
             <Err e={eInfo} />
           </div>
           <footer className="fp-actions">
-            <button className="fp-btn" disabled={!dirty || busyInfo} onClick={() => { setF({ nom: user.nom, email: user.email }); setMdpActuel(""); setTriedInfo(false); }}>Annuler</button>
+            <button className="fp-btn" disabled={!dirty || busyInfo} onClick={() => { setF({ nom: user.nom, email: user.email, telephone: user.telephone || "", telephone_partage: !!user.telephone_partage }); setMdpActuel(""); setTriedInfo(false); }}>Annuler</button>
             <button className="fp-btn solid" disabled={!dirty || busyInfo} onClick={saveInfo}>{busyInfo ? <Loader2 size={16} className="spin" /> : <Save size={16} />}Enregistrer</button>
           </footer>
         </div>

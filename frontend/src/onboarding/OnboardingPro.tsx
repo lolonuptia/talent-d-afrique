@@ -245,7 +245,7 @@ function Welcome({ user, init, onClose }) {
           {i === 0 && (<>
             <div className="ob-art"><Rocket size={34} /></div>
             <h2>Bienvenue, {user?.nom} 👋</h2>
-            <p className="ob-lead">Talent d'Afrique vous aide à recruter les meilleurs talents du continent. En une dizaine de minutes, votre espace sera prêt à recevoir ses premières candidatures.</p>
+            <p className="ob-lead">TIBA vous aide à recruter les meilleurs talents du continent. En une dizaine de minutes, votre espace sera prêt à recevoir ses premières candidatures.</p>
             <ul className="ob-points">
               <li><Check size={16} />Un guide pas à pas avec votre progression</li>
               <li><Check size={16} />Un classement automatique des candidats par score</li>

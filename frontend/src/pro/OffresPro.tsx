@@ -5,6 +5,10 @@ import { toast } from "sonner";
 import { Archive, Briefcase, Clock, Copy, LayoutGrid, List, MapPin, Pencil, Plus, RefreshCw, Search, Sparkles, Trash2, Users, Wallet } from "lucide-react";
 import { api, C, list } from "../api";
 import { Err, csv, useLoad } from "../ui";
+import { MessageCircle } from "lucide-react";
+import { useAuth } from "../auth";
+import { WhatsAppDialog } from "../whatsapp/WhatsAppDialog";
+import { OFFRE_TEMPLATES } from "../whatsapp/wa";
 import "../forms-pro/forms-pro.css";
 
 const COL = { recue: "#3b82f6", en_cours: "#a855f7", entretien: "#f59e0b", acceptee: "#10b981", refusee: "#94a3b8" };
@@ -26,6 +30,8 @@ export default function OffresPro() {
   const [view, setView] = useState(() => localStorage.getItem("oview") || "grid");
   const [del, setDel] = useState(null);
   const [busy, setBusy] = useState(false);
+  const { user } = useAuth();
+  const [wa, setWa] = useState(null);
   const s = useLoad(async () => {
     const [offres, cands] = await Promise.all([list("/offres/mine"), list("/candidatures/recues").catch(() => [])]);
     return { offres, cands };
@@ -116,6 +122,7 @@ export default function OffresPro() {
             <button className="op-a" onClick={() => act(() => api("/offres/" + o.id, "PATCH", { statut: "active" }), "Offre réactivée")}><RefreshCw size={14} />Réactiver</button>
           )}
           <button className="op-a" onClick={() => dup(o)}><Copy size={14} />Dupliquer</button>
+          <button className="op-a wa" onClick={() => setWa(o)} title="Partager sur WhatsApp"><MessageCircle size={14} />WhatsApp</button>
           <button className="op-a del" disabled={n > 0} title={n > 0 ? "Archivez l'offre : elle a des candidatures" : "Supprimer"} onClick={() => setDel(o)}><Trash2 size={14} /></button>
         </footer>
       </article>
@@ -171,6 +178,12 @@ export default function OffresPro() {
           {!offres.length && <Link className="fp-btn solid" to="/offres/nouvelle" style={{ textDecoration: "none", margin: "10px auto 0", display: "inline-flex" }}>Publier une offre</Link>}
         </div>
       ))}
+
+      {wa && <WhatsAppDialog
+        title="Partager sur WhatsApp" subtitle={wa.titre} needPhone={false}
+        templates={OFFRE_TEMPLATES}
+        vars={{ entreprise: user.nom, offre: wa.titre, details: [contrat(wa.type_contrat), wa.localisation].filter(Boolean).join(" · "), lien: window.location.origin }}
+        onClose={() => setWa(null)} />}
 
       {del && (
         <div className="op-overlay" onClick={() => !busy && setDel(null)}>

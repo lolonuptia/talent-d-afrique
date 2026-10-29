@@ -329,6 +329,7 @@ def voir_profil_candidat(
         certifications=certifications,
         portfolio=portfolio,
         a_un_cv=(Path(settings.cv_storage_dir) / f"{candidat.id}.pdf").is_file(),
+        telephone=candidat.telephone if candidat.telephone_partage else None,
     )
 
 

@@ -16,13 +16,13 @@ export function Cgu() {
   return (
     <Doc title="Conditions d'utilisation">
       <h2>1. Objet</h2>
-      <p>Talent d'Afrique met en relation des entreprises, des étudiants et des freelances. Ces conditions encadrent l'utilisation de l'espace web réservé aux entreprises.</p>
+      <p>TIBA met en relation des entreprises, des étudiants et des freelances. Ces conditions encadrent l'utilisation de l'espace web réservé aux entreprises.</p>
       <h2>2. Éditeur</h2>
       <p>[Nom de la société], [forme juridique], [adresse], [email de contact].</p>
       <h2>3. Compte entreprise</h2>
       <p>Les informations fournies doivent être exactes. Le compte est réservé aux personnes habilitées à représenter l'entreprise. Les identifiants sont confidentiels et l'entreprise répond de l'usage qui en est fait.</p>
       <h2>4. Offres publiées</h2>
-      <p>Les offres doivent être réelles, licites et non discriminatoires. Aucun paiement ne peut être demandé à un candidat. Une offre reste en ligne 60 jours après sa dernière modification, sauf prolongation. Talent d'Afrique peut retirer toute offre contraire à ces règles.</p>
+      <p>Les offres doivent être réelles, licites et non discriminatoires. Aucun paiement ne peut être demandé à un candidat. Une offre reste en ligne 60 jours après sa dernière modification, sauf prolongation. TIBA peut retirer toute offre contraire à ces règles.</p>
       <h2>5. Données des talents</h2>
       <p>Les profils, CV et messages des candidats ne peuvent être utilisés que pour le recrutement. Toute copie, revente, démarchage étranger au recrutement ou collecte automatisée est interdit.</p>
       <h2>6. Suppression du compte</h2>
