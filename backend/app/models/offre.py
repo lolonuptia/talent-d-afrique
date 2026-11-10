@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import Integer
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 
@@ -33,8 +34,10 @@ class Offre(Base):
         Float, nullable=True
     )  # taux journalier propose, pour les missions freelance
 
+    nombre_postes = Column(Integer, nullable=False, default=1, server_default="1")
+
     statut = Column(
-        Enum("active", "expiree", "archivee", name="statut_offre"),
+        Enum("active", "expiree", "archivee", "pourvue", name="statut_offre"),
         nullable=False,
         default="active",
     )

@@ -20,6 +20,7 @@ fun ProfileShortcuts(onNavigate: (String) -> Unit) {
         "Messages" to Routes.MESSAGES,
         "Mes certifications" to Routes.CERTIFICATIONS,
         "Mon portfolio" to Routes.PORTFOLIO,
+        "Mes missions" to Routes.MISSIONS,
         "Mon école" to Routes.ECOLE,
     )
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {

@@ -369,9 +369,28 @@ def update_candidature_statut(
     if payload.statut == candidature.statut:
         return candidature  # rien ne change : pas de notification inutile
 
+    if candidature.statut in ("refusee", "acceptee"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette candidature est deja cloturee : son statut ne peut plus changer.",
+        )
+
+    if payload.statut == "acceptee":
+        offre_cible = candidature.offre
+        deja_acceptees = (
+            db.query(Candidature)
+            .filter(Candidature.offre_id == offre_cible.id, Candidature.statut == "acceptee")
+            .count()
+        )
+        if deja_acceptees >= (offre_cible.nombre_postes or 1):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Tous les postes de cette offre sont deja pourvus.",
+            )
+
     candidature.statut = payload.statut
-    if payload.statut in ("refusee", "acceptee"):
-        # une candidature cloturee n'a plus d'entretien a venir
+    if payload.statut in ("refusee", "acceptee", "recue", "en_cours"):
+        # plus d'entretien a venir si la candidature est cloturee ou revenue en arriere
         db.query(Entretien).filter(
             Entretien.candidature_id == candidature.id, Entretien.statut == "planifie"
         ).update({Entretien.statut: "annule"}, synchronize_session=False)
@@ -379,6 +398,48 @@ def update_candidature_statut(
     db.refresh(candidature)
 
     notifier_changement_statut(db, candidature.candidat, candidature.offre.titre, payload.statut)
+
+    # Offre de type "mission" : le suivi de mission demarre des l'acceptation
+    if payload.statut == "acceptee" and candidature.offre.type_contrat == "mission":
+        from app.models.mission import Mission
+
+        if db.query(Mission).filter(Mission.candidature_id == candidature.id).first() is None:
+            db.add(
+                Mission(
+                    id=uuid.uuid4(),
+                    candidature_id=candidature.id,
+                    titre=candidature.offre.titre,
+                    description=candidature.offre.description,
+                    avancement=0,
+                    statut="en_cours",
+                )
+            )
+            db.commit()
+            creer_notification(
+                db,
+                user_id=candidature.candidat_id,
+                titre="Nouvelle mission",
+                message=f"Votre mission « {candidature.offre.titre} » est ouverte : vous pouvez suivre son avancement.",
+                type_evenement="mission_creee",
+            )
+
+    if payload.statut == "acceptee":
+        offre = candidature.offre
+        acceptees = (
+            db.query(Candidature)
+            .filter(Candidature.offre_id == offre.id, Candidature.statut == "acceptee")
+            .count()
+        )
+        if offre.statut == "active" and acceptees >= (offre.nombre_postes or 1):
+            offre.statut = "pourvue"
+            db.commit()
+            creer_notification(
+                db,
+                user_id=offre.entreprise.user_id,
+                titre="Offre pourvue",
+                message=f"Tous les postes de l'offre {offre.titre} sont pourvus : l'offre est fermee aux nouvelles candidatures.",
+                type_evenement="offre_pourvue",
+            )
 
     return candidature
 

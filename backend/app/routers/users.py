@@ -117,7 +117,7 @@ def delete_current_user(
         )
         if profil_ent is not None:
             # les offres d'une entreprise supprimee ne doivent plus etre publiques
-            db.query(Offre).filter(Offre.entreprise_id == profil_ent.id).update(
+            db.query(Offre).filter(Offre.entreprise_id == profil_ent.id, Offre.statut == "active").update(
                 {Offre.statut: "archivee"}, synchronize_session=False
             )
     db.commit()

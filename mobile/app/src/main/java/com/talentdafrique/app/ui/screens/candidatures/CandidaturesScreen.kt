@@ -58,7 +58,13 @@ fun CandidaturesScreen(
     viewModel: CandidaturesViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadCandidatures() }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.refresh()
+        while (true) {
+            kotlinx.coroutines.delay(15_000)
+            viewModel.refresh()
+        }
+    }
 
     when {
         uiState.isLoading -> LoadingView(modifier = Modifier.fillMaxSize())

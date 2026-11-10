@@ -4,7 +4,7 @@ const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api"
 // Valeurs par défaut, remplacées au démarrage par celles du backend (voir initSpec).
 export const C = {
   contrats: ["stage", "cdd", "cdi", "mission"],
-  statutsOffre: ["active", "expiree", "archivee"],
+  statutsOffre: ["active", "expiree", "archivee", "pourvue"],
   statutsCand: ["recue", "en_cours", "entretien", "refusee", "acceptee"],
   modes: ["visio", "presentiel", "telephone"],
   statutsEntretien: ["planifie", "annule", "termine"],

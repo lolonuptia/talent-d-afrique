@@ -18,10 +18,10 @@ android {
         versionName = "0.1.0"
 
         // URL utilisée sur l'émulateur Android (AVD) — 10.0.2.2 pointe vers le localhost du PC hôte
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/\"")
+        buildConfigField("String", "BASE_URL", "\"http://localhost:8000/api/\"")
         // URL utilisée sur un appareil physique — IP locale du PC sur le réseau WiFi
         // À mettre à jour si l'IP du PC change (vérifier avec `ipconfig`)
-        buildConfigField("String", "DEVICE_BASE_URL", "\"http://192.168.1.4:8000/api/\"")
+        buildConfigField("String", "DEVICE_BASE_URL", "\"http://localhost:8000/api/\"")
     }
 
     buildTypes {
@@ -29,8 +29,8 @@ android {
             isMinifyEnabled = false
         }
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/\"")
-            buildConfigField("String", "DEVICE_BASE_URL", "\"http://192.168.1.4:8000/api/\"")
+            buildConfigField("String", "BASE_URL", "\"http://localhost:8000/api/\"")
+            buildConfigField("String", "DEVICE_BASE_URL", "\"http://localhost:8000/api/\"")
         }
     }
 

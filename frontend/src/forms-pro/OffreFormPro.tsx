@@ -11,7 +11,7 @@ import "./forms-pro.css";
 const DRAFT = "fp-offre-draft";
 const STEPS = ["Poste", "Détails", "Conditions", "Récap"];
 const NIVEAUX = [["", "Non précisé"], ["debutant", "Débutant"], ["junior", "Junior (0 à 2 ans)"], ["confirme", "Confirmé"], ["senior", "Senior (5 ans et +)"]];
-const EMPTY = { titre: "", description: "", type_contrat: "stage", obl: [], sou: [], soft: [], niveau: "", disponibilite: "", localisation: "", remuneration: "", tjm: "", statut: "active" };
+const EMPTY = { titre: "", description: "", type_contrat: "stage", obl: [], sou: [], soft: [], niveau: "", disponibilite: "", localisation: "", remuneration: "", tjm: "", nombre_postes: "1", statut: "active" };
 const label = (v) => (v === "cdi" || v === "cdd" ? v.toUpperCase() : v.charAt(0).toUpperCase() + v.slice(1));
 
 function validate(step, f) {
@@ -50,7 +50,7 @@ export default function OffreFormPro() {
       titre: o.titre ?? "", description: o.description ?? "", type_contrat: o.type_contrat ?? "stage", statut: o.statut ?? "active",
       obl: csv(o.competences_obligatoires ?? ""), sou: csv(o.competences_souhaitees ?? ""), soft: csv(o.soft_skills ?? ""),
       niveau: o.niveau_experience ?? "", disponibilite: o.disponibilite ?? "", localisation: o.localisation ?? "",
-      remuneration: o.remuneration == null ? "" : String(o.remuneration), tjm: o.budget_tjm == null ? "" : String(o.budget_tjm),
+      remuneration: o.remuneration == null ? "" : String(o.remuneration), tjm: o.budget_tjm == null ? "" : String(o.budget_tjm), nombre_postes: String(o.nombre_postes ?? 1),
     })).catch((x) => toast.error(x.message)).finally(() => setLoading(false));
   }, [id]);
 
@@ -79,6 +79,7 @@ export default function OffreFormPro() {
       remuneration: coerce("OffreCreate", "remuneration", f.remuneration),
       budget_tjm: f.type_contrat === "mission" ? coerce("OffreCreate", "budget_tjm", f.tjm) : null,
     };
+    body.nombre_postes = Math.max(1, parseInt(f.nombre_postes, 10) || 1);
     if (id) body.statut = f.statut;
     try {
       await api(id ? "/offres/" + id : "/offres", id ? "PATCH" : "POST", body);
@@ -144,6 +145,7 @@ export default function OffreFormPro() {
               <Field label="Disponibilité attendue"><Segmented options={dispos} value={f.disponibilite} onChange={set("disponibilite")} /></Field>
               <div className="fp-grid2">
                 <Field label="Rémunération" error={E.remuneration}><input className="fp-input" type="number" min="0" placeholder="0" {...inp("remuneration")} /></Field>
+                <Field label="Nombre de postes" hint="L'offre se ferme toute seule quand tous les postes sont pourvus."><input className="fp-input" type="number" min="1" max="100" placeholder="1" {...inp("nombre_postes")} /></Field>
                 {f.type_contrat === "mission" && <Field label="Budget TJM maximum" error={E.tjm}><input className="fp-input" type="number" min="0" placeholder="0" {...inp("tjm")} /></Field>}
               </div>
               {id && <Field label="Statut"><Segmented options={(C.statutsOffre || []).map((v) => ({ value: v, label: label(v) }))} value={f.statut} onChange={set("statut")} /></Field>}
@@ -155,7 +157,7 @@ export default function OffreFormPro() {
                 {[["Poste", f.titre], ["Contrat", label(f.type_contrat)], ["Lieu", f.localisation || "Non précisé"],
                   ["Obligatoires", f.obl.join(", ") || "—"], ["Souhaitées", f.sou.join(", ") || "—"], ["Soft skills", f.soft.join(", ") || "—"],
                   ["Expérience", (NIVEAUX.find(([v]) => v === f.niveau) || [0, f.niveau || "Non précisé"])[1]],
-                  ["Disponibilité", f.disponibilite ? dispoLabel(f.disponibilite) : "Non précisée"], ["Rémunération", money]]
+                  ["Disponibilité", f.disponibilite ? dispoLabel(f.disponibilite) : "Non précisée"], ["Rémunération", money], ["Postes", f.nombre_postes || "1"]]
                   .map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}
               </div>
             )}

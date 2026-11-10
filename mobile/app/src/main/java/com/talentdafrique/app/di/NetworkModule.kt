@@ -1,6 +1,7 @@
 package com.talentdafrique.app.di
 
 import com.talentdafrique.app.data.remote.api.PortfolioApi
+import com.talentdafrique.app.data.remote.api.MissionsApi
 
 import com.talentdafrique.app.data.remote.api.CertificationsApi
 
@@ -147,4 +148,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun providePortfolioApi(retrofit: Retrofit): PortfolioApi = retrofit.create(PortfolioApi::class.java)}
+    fun providePortfolioApi(retrofit: Retrofit): PortfolioApi = retrofit.create(PortfolioApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMissionsApi(retrofit: Retrofit): MissionsApi = retrofit.create(MissionsApi::class.java)
+}

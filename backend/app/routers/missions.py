@@ -1,7 +1,9 @@
 import uuid
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -9,7 +11,9 @@ from app.core.deps import get_current_user
 from app.models.candidature import Candidature
 from app.models.mission import Mission, MissionJalon, MissionNote
 from app.models.offre import Offre
+from app.models.profiles import EntrepriseProfile
 from app.models.user import User
+from app.services.notifications import creer_notification
 from app.routers.entretiens import _notifier, _profil_entreprise, _verifier_propriete
 from app.schemas.mission import (
     JalonCreate,
@@ -278,3 +282,111 @@ def ajouter_note(
     db.commit()
     db.refresh(m)
     return _out(m)
+
+# ---- TALENT : l'etudiant / freelance suit et renseigne ses missions ----
+class TalentMissionUpdate(BaseModel):
+    avancement: int | None = Field(default=None, ge=0, le=100)
+    statut: Literal["en_cours", "en_pause"] | None = None
+
+
+class TalentJalonUpdate(BaseModel):
+    fait: bool
+
+
+def _charger_talent(db: Session, mission_id: uuid.UUID, current_user: User) -> Mission:
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux etudiants et freelances.",
+        )
+    m = db.query(Mission).filter(Mission.id == mission_id).first()
+    if m is None or m.candidature.candidat_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission introuvable.")
+    if m.statut in ("terminee", "annulee"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette mission est cloturee : elle ne peut plus etre modifiee.",
+        )
+    return m
+
+
+def _prevenir_entreprise(db: Session, m: Mission, titre: str, message: str) -> None:
+    creer_notification(
+        db,
+        user_id=db.query(EntrepriseProfile.user_id).filter(EntrepriseProfile.id == m.candidature.offre.entreprise_id).scalar(),
+        titre=titre,
+        message=message,
+        type_evenement="mission_maj",
+    )
+
+
+@router.patch("/{mission_id}/talent", response_model=MissionOut)
+def modifier_mission_talent(
+    mission_id: uuid.UUID,
+    payload: TalentMissionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    m = _charger_talent(db, mission_id, current_user)
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("avancement") is not None:
+        if m.jalons:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="L'avancement se calcule a partir des jalons : coche les jalons termines.",
+            )
+        m.avancement = data["avancement"]
+    ancien = m.statut
+    if data.get("statut") is not None:
+        m.statut = data["statut"]
+    db.commit()
+    db.refresh(m)
+    if m.statut != ancien:
+        _prevenir_entreprise(
+            db, m, "Mission mise a jour",
+            f"{current_user.nom} indique que la mission « {m.titre} » {LIBELLES.get(m.statut, m.statut)}.",
+        )
+    return _out(m)
+
+
+@router.patch("/jalons/{jalon_id}/talent", response_model=MissionOut)
+def cocher_jalon_talent(
+    jalon_id: uuid.UUID,
+    payload: TalentJalonUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    j = db.query(MissionJalon).filter(MissionJalon.id == jalon_id).first()
+    if j is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jalon introuvable.")
+    m = _charger_talent(db, j.mission_id, current_user)
+    if j.fait != payload.fait:
+        j.fait = payload.fait
+        db.commit()
+        _recalculer(db, m)
+        if payload.fait:
+            _prevenir_entreprise(
+                db, m, "Jalon termine",
+                f"{current_user.nom} a termine le jalon « {j.titre} » de la mission « {m.titre} ».",
+            )
+    return _out(m)
+
+# ---- TALENT : liste de mes missions ----
+@router.get("/mine", response_model=list[MissionOut])
+def mes_missions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.type_profil not in ("etudiant", "freelance"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reserve aux etudiants et freelances.",
+        )
+    lignes = (
+        db.query(Mission)
+        .join(Candidature, Mission.candidature_id == Candidature.id)
+        .filter(Candidature.candidat_id == current_user.id)
+        .order_by(Mission.created_at.desc())
+        .all()
+    )
+    return [_out(x) for x in lignes]

@@ -254,7 +254,7 @@ fun OffreDetailScreen(
 
                         Button(
                             onClick = { showMessageDialog.value = true },
-                            enabled = !uiState.isPostulating && !uiState.candidatureEnvoyee,
+                            enabled = !uiState.isPostulating && !uiState.candidatureEnvoyee && uiState.candidatureExistante == null && !uiState.offreFermee,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                         ) {
@@ -264,6 +264,8 @@ fun OffreDetailScreen(
                                     strokeWidth = 2.5.dp,
                                 )
                                 uiState.candidatureEnvoyee -> Text("Candidature envoyée ✓", style = MaterialTheme.typography.titleSmall)
+                                uiState.candidatureExistante != null -> Text("Déjà postulé", style = MaterialTheme.typography.titleSmall)
+                                uiState.offreFermee -> Text(if (uiState.offre?.statut?.name == "POURVUE") "Postes pourvus" else "Offre clôturée", style = MaterialTheme.typography.titleSmall)
                                 else -> Text("Postuler", style = MaterialTheme.typography.titleSmall)
                             }
                         }

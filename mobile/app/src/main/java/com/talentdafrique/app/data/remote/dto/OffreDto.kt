@@ -11,6 +11,7 @@ enum class TypeContrat {
 }
 
 enum class StatutOffre {
+    @Json(name = "pourvue") POURVUE,
     @Json(name = "active") ACTIVE,
     @Json(name = "expiree") EXPIREE,
     @Json(name = "archivee") ARCHIVEE,

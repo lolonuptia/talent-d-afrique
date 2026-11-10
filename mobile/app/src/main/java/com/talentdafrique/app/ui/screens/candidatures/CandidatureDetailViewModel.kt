@@ -59,6 +59,19 @@ class CandidatureDetailViewModel @Inject constructor(
         }
     }
 
+    /** Rafraichissement silencieux du statut et des entretiens. */
+    fun refresh() {
+        viewModelScope.launch {
+            val r = candidaturesRepository.mesCandidatures()
+            if (r is Result.Success) {
+                val c = r.data.firstOrNull { it.id == candidatureId } ?: return@launch
+                val e = entretiensRepository.list()
+                val entretiens = if (e is Result.Success) e.data.filter { it.candidatureId == candidatureId } else _ui.value.entretiens
+                _ui.value = _ui.value.copy(candidature = c, entretiens = entretiens)
+            }
+        }
+    }
+
     fun retirer() {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isRetiring = true, retraitError = null)

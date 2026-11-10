@@ -19,6 +19,7 @@ class OffreCreate(BaseModel):
     localisation: str | None = None
     remuneration: float | None = Field(default=None, ge=0)
     budget_tjm: float | None = Field(default=None, ge=0)
+    nombre_postes: int = Field(default=1, ge=1, le=100)
 
 
 class OffreUpdate(BaseModel):
@@ -33,7 +34,8 @@ class OffreUpdate(BaseModel):
     localisation: str | None = None
     remuneration: float | None = Field(default=None, ge=0)
     budget_tjm: float | None = Field(default=None, ge=0)
-    statut: Literal["active", "expiree", "archivee"] | None = None
+    nombre_postes: int | None = Field(default=None, ge=1, le=100)
+    statut: Literal["active", "expiree", "archivee", "pourvue"] | None = None
 
 
 class OffreOut(BaseModel):
@@ -51,6 +53,7 @@ class OffreOut(BaseModel):
     remuneration: float | None
     budget_tjm: float | None
     statut: str
+    nombre_postes: int = 1
     created_at: datetime
 
     class Config:

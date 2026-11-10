@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.remote.dto.StatutCandidature
 import com.talentdafrique.app.data.repository.CandidaturesRepository
 import com.talentdafrique.app.data.repository.FavorisRepository
 import com.talentdafrique.app.data.repository.OffresRepository
@@ -23,7 +24,10 @@ data class OffreDetailUiState(
     val candidatureEnvoyee: Boolean = false,
     val postulerError: String? = null,
     val isFavori: Boolean = false,
-)
+    val candidatureExistante: StatutCandidature? = null,
+) {
+    val offreFermee: Boolean get() = offre != null && !offre.statut.name.equals("ACTIVE", ignoreCase = true)
+}
 
 @HiltViewModel
 class OffreDetailViewModel @Inject constructor(
@@ -41,6 +45,7 @@ class OffreDetailViewModel @Inject constructor(
     init {
         loadOffre()
         loadFavori()
+        loadMaCandidature()
     }
 
     fun loadOffre() {
@@ -73,12 +78,25 @@ class OffreDetailViewModel @Inject constructor(
         }
     }
 
+    fun loadMaCandidature() {
+        viewModelScope.launch {
+            val r = candidaturesRepository.mesCandidatures()
+            if (r is Result.Success) {
+                val c = r.data.firstOrNull { it.offreId == offreId }
+                _uiState.value = _uiState.value.copy(candidatureExistante = c?.statut)
+            }
+        }
+    }
+
     fun postuler(message: String? = null) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPostulating = true, postulerError = null)
             when (val result = candidaturesRepository.postuler(offreId, message)) {
                 is Result.Success -> _uiState.value = _uiState.value.copy(isPostulating = false, candidatureEnvoyee = true)
-                is Result.Error -> _uiState.value = _uiState.value.copy(isPostulating = false, postulerError = result.message)
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(isPostulating = false, postulerError = result.message)
+                    loadMaCandidature()
+                }
             }
         }
     }

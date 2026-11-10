@@ -30,6 +30,16 @@ class CandidaturesViewModel @Inject constructor(
         loadCandidatures()
     }
 
+    /** Rafraichissement silencieux : pas de spinner, la liste se met a jour a l'ecran. */
+    fun refresh() {
+        viewModelScope.launch {
+            val result = candidaturesRepository.mesCandidatures()
+            if (result is Result.Success) {
+                _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = null, candidatures = result.data)
+            }
+        }
+    }
+
     fun loadCandidatures() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)

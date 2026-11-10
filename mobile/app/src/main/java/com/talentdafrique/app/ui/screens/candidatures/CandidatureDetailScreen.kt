@@ -33,6 +33,12 @@ fun CandidatureDetailScreen(
     viewModel: CandidatureDetailViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(15_000)
+            viewModel.refresh()
+        }
+    }
     val c = ui.candidature
     val showRetrait = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(ui.retiree) { if (ui.retiree) onRetiree() }

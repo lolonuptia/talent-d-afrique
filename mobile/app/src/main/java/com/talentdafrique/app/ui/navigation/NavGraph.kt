@@ -53,6 +53,7 @@ object Routes {
     const val CERTIFICATIONS = "certifications"
     const val PORTFOLIO = "portfolio"
     const val ECOLE = "ecole"
+    const val MISSIONS = "missions"
 
     fun conversation(candidatureId: String) = "messages/$candidatureId"
     fun candidatureDetail(candidatureId: String) = "candidature/$candidatureId"
@@ -274,6 +275,12 @@ fun TalentDAfriqueNavGraph(
             composable(Routes.PORTFOLIO) {
                 SubScreen("Mon portfolio", onBack = { navController.popBackStack() }) {
                     com.talentdafrique.app.ui.screens.portfolio.PortfolioScreen()
+                }
+            }
+
+            composable(Routes.MISSIONS) {
+                SubScreen("Mes missions", onBack = { navController.popBackStack() }) {
+                    com.talentdafrique.app.ui.screens.missions.MissionsScreen()
                 }
             }
 

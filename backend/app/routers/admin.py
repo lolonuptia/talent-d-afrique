@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 def _like(texte: str) -> str:
-    """Motif LIKE qui traite %, _ et \ comme des caracteres ordinaires."""
+    r"""Motif LIKE qui traite %, _ et \ comme des caracteres ordinaires."""
     echappe = texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{echappe}%"
 
