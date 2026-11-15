@@ -20,6 +20,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -87,6 +88,19 @@ fun TalentDAfriqueNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Les onglets du bas s'ouvrent sans empiler les ecrans ; les autres routes s'ouvrent normalement.
+    val goTo: (String) -> Unit = { route ->
+        if (route in mainRoutes) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        } else {
+            navController.navigate(route)
+        }
+    }
+
     Scaffold(
         bottomBar = {
             if (currentRoute in mainRoutes) {
@@ -145,10 +159,11 @@ fun TalentDAfriqueNavGraph(
             }
 
             composable(Routes.HOME) {
-                Scaffold(topBar = { TopAppBar(title = { Text("Talent d'Afrique") }) }) { padding ->
+                Scaffold(topBar = { TopAppBar(title = { Text("TIBA", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, color = androidx.compose.material3.MaterialTheme.colorScheme.primary) }) }) { padding ->
                     Box(Modifier.padding(padding)) {
                         HomeScreen(
                             onOffreClick = { offreId -> navController.navigate(Routes.offreDetail(offreId)) },
+                            onNavigate = goTo,
                             onSeeAllOffresClick = {
                                 navController.navigate(Routes.OFFRES) {
                                     launchSingleTop = true

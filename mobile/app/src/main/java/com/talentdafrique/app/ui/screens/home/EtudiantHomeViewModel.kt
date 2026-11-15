@@ -3,6 +3,7 @@ package com.talentdafrique.app.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.talentdafrique.app.data.remote.dto.OffreDto
+import com.talentdafrique.app.data.repository.AuthRepository
 import com.talentdafrique.app.data.repository.OffresRepository
 import com.talentdafrique.app.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,11 +17,13 @@ data class EtudiantHomeUiState(
     val isLoading: Boolean = true,
     val offres: List<OffreDto> = emptyList(),
     val errorMessage: String? = null,
+    val prenom: String? = null,
 )
 
 @HiltViewModel
 class EtudiantHomeViewModel @Inject constructor(
     private val offresRepository: OffresRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EtudiantHomeUiState())
@@ -28,6 +31,17 @@ class EtudiantHomeViewModel @Inject constructor(
 
     init {
         loadOffresRecommandees()
+        loadPrenom()
+    }
+
+    private fun loadPrenom() {
+        viewModelScope.launch {
+            val r = authRepository.me()
+            if (r is Result.Success) {
+                val prenom = r.data.nom.trim().substringBefore(" ")
+                _uiState.value = _uiState.value.copy(prenom = prenom.ifBlank { null })
+            }
+        }
     }
 
     fun loadOffresRecommandees() {

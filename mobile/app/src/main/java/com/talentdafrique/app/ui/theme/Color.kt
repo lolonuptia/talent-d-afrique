@@ -6,22 +6,22 @@ import androidx.compose.ui.graphics.Color
 
 // Vert
 val Forest10 = Color(0xFF002013)
-val Forest20 = Color(0xFF003826)
-val Forest30 = Color(0xFF0C5138)
-val Forest40 = Color(0xFF1B7A5C)
+val Forest20 = Color(0xFF053B2E)
+val Forest30 = Color(0xFF0A5C45)
+val Forest40 = Color(0xFF087F5B)
 val Forest80 = Color(0xFF7FD9B4)
 val Forest90 = Color(0xFFA3F0CB)
 val Forest95 = Color(0xFFD4F1E6)
 val Forest99 = Color(0xFFF3FBF6)
 
 // Terracotta
-val Terracotta10 = Color(0xFF3A1800)
-val Terracotta20 = Color(0xFF5C2900)
-val Terracotta30 = Color(0xFF8A3E00)
-val Terracotta40 = Color(0xFFB55414)
-val Terracotta80 = Color(0xFFFFB783)
-val Terracotta90 = Color(0xFFFFDCC2)
-val Terracotta95 = Color(0xFFFFEDE0)
+val Terracotta10 = Color(0xFF2B1700)
+val Terracotta20 = Color(0xFF482900)
+val Terracotta30 = Color(0xFF6A3E00)
+val Terracotta40 = Color(0xFFB26A00)
+val Terracotta80 = Color(0xFFFFB955)
+val Terracotta90 = Color(0xFFFFDDB3)
+val Terracotta95 = Color(0xFFFFF0DC)
 
 // Tertiaire (statut "entretien", liens, accents secondaires)
 val Indigo40 = Color(0xFF3E5FC7)

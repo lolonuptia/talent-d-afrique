@@ -58,7 +58,7 @@ fun TalentDAfriqueBottomBar(
 
     LaunchedEffect(currentRoute) { badgeViewModel.refreshNow() }
 
-    NavigationBar(tonalElevation = 3.dp) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
         bottomNavItems.forEach { item ->
             val selected = currentRoute == item.route
             NavigationBarItem(

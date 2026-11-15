@@ -38,7 +38,7 @@ fun WrongRoleScreen(onLogout: () -> Unit) {
             modifier = Modifier.padding(top = 20.dp),
         )
         Text(
-            text = "Ton type de compte est disponible sur la version web de Talent d'Afrique.",
+            text = "Ton type de compte est disponible sur la version web de TIBA.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

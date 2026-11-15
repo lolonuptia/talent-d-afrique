@@ -1,6 +1,7 @@
 package com.talentdafrique.app.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,14 +9,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.WavingHand
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.WifiOff
@@ -37,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.talentdafrique.app.ui.components.EmptyView
 import com.talentdafrique.app.ui.components.ErrorView
 import com.talentdafrique.app.ui.components.LoadingView
+import com.talentdafrique.app.ui.components.QuickAccessRow
 import com.talentdafrique.app.ui.screens.offres.OffreCard
 import com.talentdafrique.app.ui.theme.Forest20
 import com.talentdafrique.app.ui.theme.Forest40
@@ -57,6 +61,7 @@ private fun greeting(): String {
 fun EtudiantHomeContent(
     onOffreClick: (String) -> Unit,
     onSeeAllClick: () -> Unit,
+    onNavigate: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: EtudiantHomeViewModel = hiltViewModel(),
 ) {
@@ -75,7 +80,15 @@ fun EtudiantHomeContent(
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 32.dp),
         ) {
-            item { HomeHero(offresCount = uiState.offres.size) }
+            item {
+                HomeHero(
+                    prenom = uiState.prenom,
+                    offresCount = uiState.offres.size,
+                    onSearchClick = onSeeAllClick,
+                )
+            }
+
+            item { QuickAccessRow(onNavigate = onNavigate) }
 
             item {
                 Row(
@@ -104,7 +117,7 @@ fun EtudiantHomeContent(
                         title = "Pas encore de recommandations",
                         subtitle = "Complète ton profil et ton CV pour recevoir des offres adaptées.",
                         icon = Icons.Outlined.SearchOff,
-                        modifier = Modifier.size(height = 320.dp, width = 0.dp).fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(320.dp),
                     )
                 }
             } else {
@@ -119,14 +132,13 @@ fun EtudiantHomeContent(
 }
 
 @Composable
-private fun HomeHero(offresCount: Int) {
+private fun HomeHero(prenom: String?, offresCount: Int, onSearchClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(HeroShape)
             .background(Brush.linearGradient(colors = listOf(Forest40, Forest20))),
     ) {
-        // Motif décoratif discret : deux cercles en fond, évoquant un soleil/motif graphique
         Box(
             modifier = Modifier
                 .size(180.dp)
@@ -144,37 +156,57 @@ private fun HomeHero(offresCount: Int) {
                 .background(Color.White.copy(alpha = 0.05f)),
         )
 
-        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 32.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.WavingHand,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp),
-                )
-                Text(
-                    text = "${greeting()} !",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
-
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp)) {
             Text(
-                text = "Voici les offres qui te correspondent le mieux",
+                text = if (prenom.isNullOrBlank()) "${greeting()} !" else "${greeting()}, $prenom",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+            )
+            Text(
+                text = "Trouve ta prochaine opportunité",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.88f),
-                modifier = Modifier.padding(top = 6.dp, bottom = 20.dp),
+                modifier = Modifier.padding(top = 4.dp),
             )
+
+            // Barre de recherche : ouvre la liste complète des offres
+            Surface(
+                color = Color.White,
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .clickable(onClick = onSearchClick),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = "Rechercher une offre, un stage…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+            }
 
             if (offresCount > 0) {
                 Surface(
                     color = Color.White.copy(alpha = 0.16f),
                     shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.padding(top = 14.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Star,

@@ -108,6 +108,7 @@ fun MissionsScreen(viewModel: MissionsViewModel = hiltViewModel()) {
                         onJalon = viewModel::cocherJalon,
                         onStatut = viewModel::changerStatut,
                         onAvancement = viewModel::changerAvancement,
+                        onNote = viewModel::ajouterNote,
                     )
                 }
             }
@@ -121,6 +122,7 @@ private fun MissionCard(
     onJalon: (String, Boolean) -> Unit,
     onStatut: (String, String) -> Unit,
     onAvancement: (String, Int) -> Unit,
+    onNote: (String, String) -> Unit,
 ) {
     val cloturee = m.statut == "terminee" || m.statut == "annulee"
     var valeur by remember(m.id, m.avancement) { mutableStateOf(m.avancement.toFloat()) }
@@ -224,6 +226,8 @@ private fun MissionCard(
                     Text(if (m.statut == "en_pause") "Reprendre la mission" else "Mettre en pause")
                 }
             }
+
+            MissionExtras(m = m, cloturee = cloturee, onStatut = onStatut, onNote = onNote)
         }
     }
 }
@@ -245,5 +249,99 @@ private fun Box100(fraction: Float) {
                 .fillMaxHeight()
                 .background(MaterialTheme.colorScheme.primary),
         )
+    }
+}
+
+@Composable
+private fun MissionExtras(
+    m: MissionDto,
+    cloturee: Boolean,
+    onStatut: (String, String) -> Unit,
+    onNote: (String, String) -> Unit,
+) {
+    var confirmer by remember(m.id) { mutableStateOf(false) }
+    var note by remember(m.id) { mutableStateOf("") }
+    val restants = m.jalons.count { !it.fait }
+
+    if (!cloturee) {
+        androidx.compose.material3.Button(
+            onClick = { confirmer = true },
+            enabled = restants == 0,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) { Text("Marquer comme terminée") }
+        if (restants > 0) {
+            Text(
+                text = "Coche d'abord tous les jalons ($restants restant(s)).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+
+    if (confirmer) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmer = false },
+            title = { Text("Terminer la mission ?") },
+            text = { Text("L'entreprise sera prévenue et tu ne pourras plus modifier cette mission.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmer = false
+                    onStatut(m.id, "terminee")
+                }) { Text("Terminer") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmer = false }) { Text("Annuler") }
+            },
+        )
+    }
+
+    Text(
+        text = "Points d'avancement",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 16.dp),
+    )
+
+    if (!cloturee) {
+        androidx.compose.material3.OutlinedTextField(
+            value = note,
+            onValueChange = { note = it },
+            label = { Text("Ajouter un point") },
+            minLines = 2,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
+        OutlinedButton(
+            onClick = {
+                onNote(m.id, note.trim())
+                note = ""
+            },
+            enabled = note.isNotBlank(),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) { Text("Publier le point") }
+    }
+
+    if (m.notes.isEmpty()) {
+        Text(
+            text = "Aucun point pour l'instant.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    } else {
+        m.notes.forEach { n ->
+            Column(modifier = Modifier.padding(top = 10.dp)) {
+                Text(text = n.contenu, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = com.talentdafrique.app.ui.components.formatDateHeure(n.createdAt) +
+                        (if (n.avancement != null) " · ${n.avancement} %" else ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }

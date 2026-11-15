@@ -40,7 +40,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.talentdafrique.app.ui.theme.Forest20
+import com.talentdafrique.app.ui.theme.Forest40
+import com.talentdafrique.app.ui.theme.HeroShape
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.talentdafrique.app.data.remote.dto.ProfileDto
@@ -89,7 +96,7 @@ fun ProfileScreen(
         ) {
             // En-tête avatar
             Column(
-                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                modifier = Modifier.fillMaxWidth().clip(HeroShape).background(Brush.linearGradient(listOf(Forest40, Forest20))).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Surface(
@@ -107,16 +114,18 @@ fun ProfileScreen(
                 }
                 Text(
                     text = uiState.user?.nom ?: "",
+                    color = Color.White,
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
                     text = uiState.user?.email ?: "",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.85f),
                 )
             }
 
+            // Profil étudiant
             val etudiantProfile = uiState.profile as? ProfileDto.Etudiant
 
             // Carte CV
@@ -315,7 +324,7 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp),
             ) { Text("Mon compte et mes données") }
 
-            ProfileShortcuts(onNavigate)
+            ProfileShortcuts(onNavigate) // menu
 
             Divider(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),

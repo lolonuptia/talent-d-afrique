@@ -12,10 +12,12 @@ import androidx.compose.ui.Modifier
 fun HomeScreen(
     onOffreClick: (String) -> Unit = {},
     onSeeAllOffresClick: () -> Unit = {},
+    onNavigate: (String) -> Unit = {},
 ) {
     EtudiantHomeContent(
         onOffreClick = onOffreClick,
         onSeeAllClick = onSeeAllOffresClick,
+        onNavigate = onNavigate,
         modifier = Modifier.fillMaxSize(),
     )
 }

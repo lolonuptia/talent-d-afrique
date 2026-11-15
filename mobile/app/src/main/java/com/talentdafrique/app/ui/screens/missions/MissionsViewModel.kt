@@ -63,6 +63,10 @@ class MissionsViewModel @Inject constructor(
         viewModelScope.launch { appliquer(repository.changerAvancement(missionId, avancement)) }
     }
 
+    fun ajouterNote(missionId: String, contenu: String) {
+        viewModelScope.launch { appliquer(repository.ajouterNote(missionId, contenu)) }
+    }
+
     fun effacerErreurAction() {
         _uiState.value = _uiState.value.copy(actionError = null)
     }

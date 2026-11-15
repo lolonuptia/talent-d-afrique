@@ -7,7 +7,7 @@
         android:name=".TalentDAfriqueApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
-        android:label="Talent d'Afrique"
+        android:label="TIBA"
         android:theme="@style/Theme.TalentDAfrique"
         android:usesCleartextTraffic="true">
         <!--

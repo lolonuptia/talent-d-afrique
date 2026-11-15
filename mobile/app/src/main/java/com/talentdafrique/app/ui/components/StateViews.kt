@@ -20,9 +20,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoadingView(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(strokeWidth = 3.dp)
-    }
+    SkeletonList(modifier = modifier)
 }
 
 @Composable

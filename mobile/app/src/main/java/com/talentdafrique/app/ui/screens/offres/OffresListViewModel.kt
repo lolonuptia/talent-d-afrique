@@ -17,7 +17,21 @@ data class OffresListUiState(
     val offres: List<OffreDto> = emptyList(),
     val errorMessage: String? = null,
     val selectedType: String? = null,
-)
+    val query: String = "",
+) {
+    /** Offres filtrees par la recherche (titre, lieu, description, competences). */
+    val visibles: List<OffreDto>
+        get() {
+            val q = query.trim().lowercase()
+            if (q.isEmpty()) return offres
+            return offres.filter { o ->
+                listOfNotNull(
+                    o.titre, o.localisation, o.description,
+                    o.competencesObligatoires, o.competencesSouhaitees,
+                ).any { it.lowercase().contains(q) }
+            }
+        }
+}
 
 @HiltViewModel
 class OffresListViewModel @Inject constructor(
@@ -34,6 +48,10 @@ class OffresListViewModel @Inject constructor(
     fun onTypeFilterSelected(type: String?) {
         _uiState.value = _uiState.value.copy(selectedType = type)
         loadOffres()
+    }
+
+    fun onQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(query = query)
     }
 
     fun loadOffres() {

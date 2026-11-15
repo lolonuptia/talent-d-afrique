@@ -87,7 +87,7 @@ fun LoginScreen(
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "TA",
+                            text = "T",
                             style = MaterialTheme.typography.headlineMedium,
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
@@ -95,7 +95,7 @@ fun LoginScreen(
                     }
                 }
                 Text(
-                    text = "Talent d'Afrique",
+                    text = "TIBA",
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                     modifier = Modifier.padding(top = 16.dp),

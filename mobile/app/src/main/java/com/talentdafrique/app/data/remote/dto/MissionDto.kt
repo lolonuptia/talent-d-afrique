@@ -49,3 +49,8 @@ data class MissionTalentRequest(
 data class JalonTalentRequest(
     val fait: Boolean,
 )
+
+@JsonClass(generateAdapter = true)
+data class NoteTalentRequest(
+    val contenu: String,
+)

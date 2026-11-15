@@ -286,7 +286,7 @@ def ajouter_note(
 # ---- TALENT : l'etudiant / freelance suit et renseigne ses missions ----
 class TalentMissionUpdate(BaseModel):
     avancement: int | None = Field(default=None, ge=0, le=100)
-    statut: Literal["en_cours", "en_pause"] | None = None
+    statut: Literal["en_cours", "en_pause", "terminee"] | None = None
 
 
 class TalentJalonUpdate(BaseModel):
@@ -337,6 +337,13 @@ def modifier_mission_talent(
             )
         m.avancement = data["avancement"]
     ancien = m.statut
+    if data.get("statut") == "terminee":
+        if any(not j.fait for j in m.jalons):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Coche tous les jalons avant de terminer la mission.",
+            )
+        m.avancement = 100
     if data.get("statut") is not None:
         m.statut = data["statut"]
     db.commit()
@@ -390,3 +397,24 @@ def mes_missions(
         .all()
     )
     return [_out(x) for x in lignes]
+
+# ---- TALENT : points d'avancement ----
+@router.post("/{mission_id}/notes/talent", response_model=MissionOut, status_code=status.HTTP_201_CREATED)
+def ajouter_note_talent(
+    mission_id: uuid.UUID,
+    payload: NoteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    m = _charger_talent(db, mission_id, current_user)
+    contenu = payload.contenu.strip()
+    if not contenu:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le point d'avancement est vide.")
+    db.add(MissionNote(mission_id=m.id, contenu=contenu, avancement=m.avancement))
+    db.commit()
+    db.refresh(m)
+    _prevenir_entreprise(
+        db, m, "Point d'avancement",
+        f"{current_user.nom} a ajoute une mise a jour sur la mission « {m.titre} ».",
+    )
+    return _out(m)

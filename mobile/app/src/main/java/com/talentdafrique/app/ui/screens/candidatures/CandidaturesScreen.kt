@@ -42,6 +42,7 @@ import com.talentdafrique.app.ui.components.EmptyView
 import com.talentdafrique.app.ui.components.ErrorView
 import com.talentdafrique.app.ui.components.LoadingView
 import com.talentdafrique.app.ui.components.StatusChip
+import com.talentdafrique.app.ui.components.CandidatureProgress
 import com.talentdafrique.app.ui.components.statutCandidatureStyle
 
 private fun iconeStatut(statut: StatutCandidature): ImageVector = when (statut) {
@@ -146,6 +147,7 @@ fun CandidaturesScreen(
                             }
 
                             StatusChip(style = style, modifier = Modifier.padding(top = 10.dp))
+                            CandidatureProgress(statut = candidature.statut, color = style.color)
                         }
                     }
                 }

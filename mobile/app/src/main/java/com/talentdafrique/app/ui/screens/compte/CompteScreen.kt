@@ -45,7 +45,7 @@ fun CompteScreen(viewModel: CompteViewModel = hiltViewModel()) {
         ui.exportedJson?.let { json ->
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Mes données Talent d'Afrique")
+                putExtra(Intent.EXTRA_SUBJECT, "Mes données TIBA")
                 putExtra(Intent.EXTRA_TEXT, json)
             }
             context.startActivity(Intent.createChooser(intent, "Exporter mes données"))
