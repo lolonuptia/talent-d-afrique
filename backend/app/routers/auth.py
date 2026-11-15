@@ -23,6 +23,7 @@ from app.services.verification import envoyer_verification
 router = APIRouter()
 
 COOKIE_SECURE = settings.environment == "production"
+COOKIE_SAMESITE = "none" if COOKIE_SECURE else "lax"  # Vercel <-> Render = cross-site
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -31,7 +32,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         value=access_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=settings.access_token_expire_minutes * 60,
         path="/",
     )
@@ -40,7 +41,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         value=refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         path="/",
     )
@@ -161,7 +162,7 @@ def refresh(
         value=new_access_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=settings.access_token_expire_minutes * 60,
         path="/",
     )
@@ -170,7 +171,7 @@ def refresh(
         value=new_refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         path="/",
     )
@@ -199,8 +200,8 @@ def logout(
         if jeton:
             revoquer(db, jeton)
     db.commit()
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie("access_token", path="/", secure=COOKIE_SECURE, httponly=True, samesite=COOKIE_SAMESITE)
+    response.delete_cookie("refresh_token", path="/", secure=COOKIE_SECURE, httponly=True, samesite=COOKIE_SAMESITE)
     return {"message": "Deconnecte."}
 
 
