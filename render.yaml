@@ -1,7 +1,15 @@
+databases:
+  - name: talent-afrique-db
+    plan: free
+    databaseName: talent_afrique
+    user: talent
+
 services:
+  # ---------- BACKEND ----------
   - type: web
     name: talent-afrique-api
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -17,8 +25,25 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: talent-afrique-db
+          property: connectionString
       - key: FRONTEND_URL
-        sync: false
+        value: https://talent-afrique-web.onrender.com
       - key: RESEND_API_KEY
         sync: false
+
+  # ---------- FRONTEND ----------
+  - type: web
+    name: talent-afrique-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://talent-afrique-api.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
