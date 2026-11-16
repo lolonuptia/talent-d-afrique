@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+import i18n from "./i18n"; const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 // Valeurs par défaut, remplacées au démarrage par celles du backend (voir initSpec).
 export const C = {
@@ -58,7 +58,7 @@ export const setTokens = (a: string, r?: string) => { localStorage.setItem("acce
 export const clearTokens = () => { localStorage.removeItem("access"); localStorage.removeItem("refresh"); };
 
 function text(d: any, s: number): string {
-  if (s === 429) return "Trop de requêtes, réessaie dans une minute.";
+  if (s === 429) return i18n.t("Trop de requêtes, réessaie dans une minute.");
   const x = d?.detail;
   if (typeof x === "string") return x;
   if (Array.isArray(x)) return x.map((e: any) => `${(e.loc || []).slice(1).join(".")} : ${e.msg}`).join(" | ");
@@ -66,7 +66,7 @@ function text(d: any, s: number): string {
 }
 
 function send(path: string, method: string, body?: unknown) {
-  const h: Record<string, string> = {};
+  const h: Record<string, string> = { "Accept-Language": (i18n.resolvedLanguage || "fr").slice(0, 2) };
   const a = localStorage.getItem("access");
   if (a) h.Authorization = "Bearer " + a;
   let b: BodyInit | undefined;
@@ -93,7 +93,7 @@ const refreshTokens = () =>
 export async function api<T = any>(path: string, method = "GET", body?: unknown): Promise<T> {
   const call = async () => {
     try { return await send(path, method, body); }
-    catch { throw new ApiError("Serveur injoignable. Réessaie dans un instant."); }
+    catch { throw new ApiError(i18n.t("Serveur injoignable. Réessaie dans un instant.")); }
   };
   let res = await call();
   if (res.status === 401 && localStorage.getItem("refresh") && !/^\/auth\/(login|register|refresh)/.test(path)) {
@@ -120,7 +120,7 @@ export async function openFile(path: string) {
   try {
     let res = await send(path, "GET");
     if (res.status === 401 && (await refreshTokens())) res = await send(path, "GET");
-    if (!res.ok) throw new ApiError(res.status === 404 ? "Aucun CV déposé." : `Erreur ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status === 404 ? i18n.t("Aucun CV déposé.") : `Erreur ${res.status}`);
     const url = URL.createObjectURL(await res.blob());
     if (w) w.location.href = url; else window.location.href = url;
   } catch (x) {

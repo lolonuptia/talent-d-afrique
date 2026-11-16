@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth";
-import { initSpec } from "./api";
+import { initSpec } from "./api"; import "./i18n";
 import "./index.css";
 import "./pages4.css";
 import "./polish.css";
