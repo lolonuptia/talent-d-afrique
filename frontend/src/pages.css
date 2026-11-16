@@ -1,5 +1,5 @@
 :root{--card:#fff}
-html[data-theme=dark]{--card:#111b17}
+html[data-theme=dark]{--card:#0f1a2b}
 .x-add{display:inline-flex;align-items:center;gap:6px}
 .x-toolbar{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
 .x-search{position:relative;max-width:420px}
@@ -34,7 +34,7 @@ html[data-theme=dark]{--card:#111b17}
 .x-form{display:flex;flex-direction:column;max-width:860px}
 .x-sec-h{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px}
 .x-sec-h h2{margin:0 0 2px}.x-sec-h p{margin:0;font-size:13px}
-.x-sec-h>span{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),#14a07a)}
+.x-sec-h>span{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),#2f7be5)}
 .x-count-t{display:block;text-align:right;color:var(--mut);font-size:12px;margin-top:4px}
 .x-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .x-tags span{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand);border-radius:99px;padding:3px 11px;font-size:13px;font-weight:600}

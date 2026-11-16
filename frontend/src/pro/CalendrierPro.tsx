@@ -12,7 +12,7 @@ const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const MODE = { visio: "Visio", presentiel: "Présentiel", telephone: "Téléphone" };
 const MICON = { visio: Video, presentiel: MapPin, telephone: Phone };
 const STAT = { planifie: "Planifié", termine: "Terminé", annule: "Annulé" };
-const COLOR = { planifie: "#0f9d73", termine: "#3b82f6", annule: "#94a3b8", fin: "#e3b023", debut: "#a855f7" };
+const COLOR = { planifie: "#1565d8", termine: "#3b82f6", annule: "#94a3b8", fin: "#f7941d", debut: "#a855f7" };
 const WD = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 const toDate = (d) => new Date(!d ? 0 : /(Z|[+-]\d\d:?\d\d)$/i.test(d) ? d : d + "Z");

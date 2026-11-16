@@ -12,9 +12,9 @@ import "./admin-users-pro.css";
 
 const PAGE = 50;
 const PROFIL = { etudiant: "Étudiant", freelance: "Freelance", entreprise: "Entreprise", ecole: "École" };
-const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#14a07a" };
+const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#2f7be5" };
 const STATUT = { actif: "Actif", suspendu: "Suspendu", supprime: "Supprimé" };
-const SCOLOR = { actif: "#0f9d73", suspendu: "#ef4444", supprime: "#94a3b8" };
+const SCOLOR = { actif: "#1565d8", suspendu: "#ef4444", supprime: "#94a3b8" };
 const SORTS = [["recent", "Plus récents"], ["ancien", "Plus anciens"], ["az", "Nom A → Z"], ["za", "Nom Z → A"]];
 
 const ini = (s) => (s || "?").split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -175,7 +175,7 @@ export function AdminUsers() {
   );
 
   const tiles = [
-    ["", "Tous les comptes", Users, "#0f5d46", g?.total_utilisateurs],
+    ["", "Tous les comptes", Users, "#0b4fb3", g?.total_utilisateurs],
     ["etudiant", "Étudiants", GraduationCap, PCOLOR.etudiant, g?.total_etudiants],
     ["freelance", "Freelances", Laptop, PCOLOR.freelance, g?.total_freelances],
     ["entreprise", "Entreprises", Building2, PCOLOR.entreprise, g?.total_entreprises],

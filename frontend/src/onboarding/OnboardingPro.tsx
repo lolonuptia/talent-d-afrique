@@ -13,7 +13,7 @@ import "../forms-pro/forms-pro.css";
 import "./onboarding.css";
 
 /* À adapter : adresse affichée dans l'onglet Aide */
-const SUPPORT_EMAIL = "support@talentdafrique.com";
+const SUPPORT_EMAIL = "support@tiba.help";
 
 /* ================= STOCKAGE (par utilisateur, dans le navigateur) ================= */
 const DEFAULT = { welcomed: false, tour: false, dismissed: false, celebrated: false, goals: [], team: "", seen: {} };
@@ -212,7 +212,7 @@ const RACCOURCIS = [
 ];
 
 /* ================= PETITS COMPOSANTS ================= */
-function Ring({ v, size = 64, stroke = 7, color = "#0f9d73" }) {
+function Ring({ v, size = 64, stroke = 7, color = "#1565d8" }) {
   const R = (size - stroke) / 2, C = 2 * Math.PI * R, h = size / 2;
   return (
     <svg width={size} height={size} viewBox={"0 0 " + size + " " + size} style={{ flex: "none" }} role="img" aria-label={v + " pour cent"}>

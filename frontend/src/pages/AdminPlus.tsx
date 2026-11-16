@@ -65,7 +65,7 @@ export function AdminUserDetail() {
                 </div>
               </div>
               <div className="x-kpis" style={{ marginTop: 16, marginBottom: 0 }}>
-                <div className="x-kpi" style={{ ["--c" as any]: "#0f5d46" }}><span>Offres</span><b>{f.compteurs.offres}</b></div>
+                <div className="x-kpi" style={{ ["--c" as any]: "#0b4fb3" }}><span>Offres</span><b>{f.compteurs.offres}</b></div>
                 <div className="x-kpi" style={{ ["--c" as any]: "#3b82f6" }}><span>Candidatures reçues</span><b>{f.compteurs.candidatures_recues}</b></div>
                 <div className="x-kpi" style={{ ["--c" as any]: "#a855f7" }}><span>Candidatures envoyées</span><b>{f.compteurs.candidatures_envoyees}</b></div>
               </div>
@@ -120,7 +120,7 @@ export function AdminUserDetail() {
                 <div className="x-tl">
                   {f.historique.map((h: any, i: number) => (
                     <div key={i} className="x-tl-i">
-                      <i style={{ background: "#0f5d46" }} />
+                      <i style={{ background: "#0b4fb3" }} />
                       <div><strong>{ACTIONS[h.action] ?? h.action}</strong>{h.details && <> — {h.details}</>}<small>{fdate(h.created_at)} · {h.admin_nom ?? "—"}</small></div>
                     </div>
                   ))}

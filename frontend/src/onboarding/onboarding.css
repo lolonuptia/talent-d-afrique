@@ -13,7 +13,7 @@
 .ob-phase-h p{margin:2px 0 0;font-size:12.5px;color:var(--fp-muted)}
 .ob-phase-h em{font-style:normal;font-size:12px;font-weight:800;padding:3px 10px;border-radius:99px;background:var(--fp-track);color:var(--fp-g2)}
 .ob-step{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:var(--fp-card);color:var(--fp-text);border:1.5px solid var(--fp-border);transition:.2s;flex-wrap:wrap}
-.ob-step.next{border-color:var(--fp-g2);box-shadow:0 0 0 4px rgba(15,157,115,.12)}
+.ob-step.next{border-color:var(--fp-g2);box-shadow:0 0 0 4px rgba(21,101,216,.12)}
 .ob-step.ok{opacity:.7}
 .ob-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--fp-border);display:grid;place-items:center;flex:none;color:#fff;margin-top:1px}
 .ob-step.ok .ob-check{background:var(--fp-g2);border-color:var(--fp-g2)}
@@ -55,7 +55,7 @@
 .ob-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--fp-soft);color:var(--fp-muted)}
 @keyframes ob-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
 .ob-slide{display:flex;flex-direction:column;gap:12px;align-items:flex-start;animation:ob-in .3s both;min-height:340px}
-.ob-art{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#0a5a42,#0f9d73);box-shadow:0 12px 24px -12px rgba(15,157,115,.9)}
+.ob-art{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#0a3d8f,#1565d8);box-shadow:0 12px 24px -12px rgba(21,101,216,.9)}
 .ob-slide h2{margin:6px 0 0;font-size:23px;font-weight:800;letter-spacing:-.02em}
 .ob-count{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--fp-muted)}
 .ob-lead{margin:0;font-size:14.5px;line-height:1.6;color:var(--fp-muted)}
@@ -84,14 +84,14 @@
 .ob-skip:hover{color:var(--fp-text)}
 .ob-dots{display:flex;gap:6px}
 .ob-dots i{width:8px;height:8px;border-radius:99px;background:var(--fp-track);transition:.2s}
-.ob-dots i.past{background:rgba(15,157,115,.5)}
+.ob-dots i.past{background:rgba(21,101,216,.5)}
 .ob-dots i.on{width:22px;background:var(--fp-g2)}
 .ob-btns{display:flex;gap:8px}
 .ob-btns .fp-btn{height:40px}
 
 /* widget flottant */
 .ob-launch{position:fixed;right:20px;bottom:20px;z-index:1500;display:flex;align-items:center;gap:10px;padding:8px 18px 8px 8px;border-radius:99px;border:0;cursor:pointer;
-  background:linear-gradient(135deg,#0a5a42,#0f9d73);color:#fff;font:inherit;font-weight:800;font-size:13.5px;box-shadow:0 14px 30px -10px rgba(6,64,47,.85);transition:.2s}
+  background:linear-gradient(135deg,#0a3d8f,#1565d8);color:#fff;font:inherit;font-weight:800;font-size:13.5px;box-shadow:0 14px 30px -10px rgba(6,64,47,.85);transition:.2s}
 .ob-launch:hover{transform:translateY(-2px)}
 .ob-mini{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:11.5px}
 .ob-panel{position:fixed;right:20px;bottom:76px;z-index:1500;width:min(360px,calc(100vw - 40px));display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 50px -16px rgba(0,0,0,.45);animation:ob-in .25s both}

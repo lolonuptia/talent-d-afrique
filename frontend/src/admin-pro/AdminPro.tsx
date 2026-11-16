@@ -17,10 +17,10 @@ import "./admin-pro.css";
 
 const PAGE = 50;
 const PROFIL = { etudiant: "Étudiant", freelance: "Freelance", entreprise: "Entreprise", ecole: "École" };
-const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#14a07a" };
+const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#2f7be5" };
 const STATUT = { actif: "Actif", suspendu: "Suspendu", supprime: "Supprimé" };
-const SCOLOR = { actif: "#0f9d73", suspendu: "#ef4444", supprime: "#94a3b8" };
-const OCOLOR = { active: "#0f9d73", expiree: "#f59e0b", archivee: "#94a3b8" };
+const SCOLOR = { actif: "#1565d8", suspendu: "#ef4444", supprime: "#94a3b8" };
+const OCOLOR = { active: "#1565d8", expiree: "#f59e0b", archivee: "#94a3b8" };
 const OLAB = { active: "Active", expiree: "Expirée", archivee: "Archivée" };
 const ini = (s) => (s || "?").split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const lab = (s) => String(s || "").replace(/_/g, " ");
@@ -33,10 +33,10 @@ export const ACTIONS = {
   annonce: "Annonce envoyée", export_donnees: "Export de données",
 };
 const AMETA = {
-  suspension_compte: [Ban, "#ef4444"], reactivation_compte: [RotateCcw, "#0f9d73"], suppression_offre: [Trash2, "#ef4444"],
+  suspension_compte: [Ban, "#ef4444"], reactivation_compte: [RotateCcw, "#1565d8"], suppression_offre: [Trash2, "#ef4444"],
   archivage_offre_moderation: [Briefcase, "#f59e0b"], verification_email_manuelle: [MailCheck, "#3b82f6"],
   promotion_admin: [ShieldCheck, "#a855f7"], retrait_admin: [ShieldOff, "#f59e0b"], deconnexion_forcee: [LogOut, "#f59e0b"],
-  lien_reinitialisation_envoye: [KeyRound, "#3b82f6"], purge_compte: [Trash2, "#dc2626"], annonce: [Megaphone, "#0f9d73"],
+  lien_reinitialisation_envoye: [KeyRound, "#3b82f6"], purge_compte: [Trash2, "#dc2626"], annonce: [Megaphone, "#1565d8"],
   export_donnees: [Download, "#6366f1"],
 };
 
@@ -210,11 +210,11 @@ export function AdminHome() {
   const h = new Date().getHours();
   const hello = h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
   const kpis = [
-    { label: "Comptes", value: g.total_utilisateurs, icon: Users, color: "#0f5d46" },
+    { label: "Comptes", value: g.total_utilisateurs, icon: Users, color: "#0b4fb3" },
     { label: "Étudiants", value: g.total_etudiants, icon: GraduationCap, color: "#3b82f6" },
     { label: "Freelances", value: g.total_freelances, icon: Laptop, color: "#a855f7" },
     { label: "Entreprises", value: g.total_entreprises, icon: Building2, color: "#f59e0b" },
-    { label: "Écoles", value: g.total_ecoles, icon: School, color: "#14a07a" },
+    { label: "Écoles", value: g.total_ecoles, icon: School, color: "#2f7be5" },
     { label: "Offres actives", value: g.total_offres_actives, icon: Briefcase, color: "#0ea5e9" },
     { label: "Candidatures", value: g.total_candidatures, icon: FileText, color: "#6366f1" },
     { label: "Taux d'acceptation", value: Math.round(g.taux_matching_moyen), suffix: " %", icon: Percent, color: "#10b981" },
@@ -410,7 +410,7 @@ export function AdminUserDetail() {
         </div>
       </section>
       <section className="ad-kpis small">
-        {[["Offres", f.compteurs.offres, "#0f5d46", Briefcase], ["Candidatures reçues", f.compteurs.candidatures_recues, "#3b82f6", FileText], ["Candidatures envoyées", f.compteurs.candidatures_envoyees, "#a855f7", Send]].map(([l, v, cl, I], i) => <Kpi key={l} i={i} k={{ label: l, value: v, color: cl, icon: I }} />)}
+        {[["Offres", f.compteurs.offres, "#0b4fb3", Briefcase], ["Candidatures reçues", f.compteurs.candidatures_recues, "#3b82f6", FileText], ["Candidatures envoyées", f.compteurs.candidatures_envoyees, "#a855f7", Send]].map(([l, v, cl, I], i) => <Kpi key={l} i={i} k={{ label: l, value: v, color: cl, icon: I }} />)}
       </section>
 
       {!supprime && !moi && (
@@ -484,7 +484,7 @@ export function AdminOutils() {
         <aside>
           <span className="ad-prev-lab"><Eye size={14} />Aperçu de la notification</span>
           <div className="fp-card ad-notif">
-            <span className="ad-ico" style={{ "--c": "#0f9d73" }}><Bell size={18} /></span>
+            <span className="ad-ico" style={{ "--c": "#1565d8" }}><Bell size={18} /></span>
             <div><b>{f.titre || "Titre de l'annonce"}</b><p>{f.message || "Le message apparaîtra ici."}</p><small>À l'instant · {CIBLES[f.cible]}</small></div>
           </div>
         </aside>

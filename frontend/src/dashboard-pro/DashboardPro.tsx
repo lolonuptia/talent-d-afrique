@@ -20,8 +20,8 @@ const SERIES = {
 }
 
 const KPIS = [
-  { label: 'Offres actives', value: 8, delta: '+2', icon: Briefcase, color: '#0f9d73', data: [3, 4, 4, 5, 6, 6, 7, 8] },
-  { label: 'Candidatures', value: 142, delta: '+18%', icon: Users, color: '#d4a017', data: [20, 34, 30, 52, 61, 88, 110, 142] },
+  { label: 'Offres actives', value: 8, delta: '+2', icon: Briefcase, color: '#1565d8', data: [3, 4, 4, 5, 6, 6, 7, 8] },
+  { label: 'Candidatures', value: 142, delta: '+18%', icon: Users, color: '#e07b00', data: [20, 34, 30, 52, 61, 88, 110, 142] },
   { label: 'Entretiens', value: 12, delta: '+4', icon: CalendarDays, color: '#3b82f6', data: [2, 3, 3, 5, 6, 8, 9, 12] },
   { label: 'Vues des offres', value: 2480, delta: '+26%', icon: Eye, color: '#8b5cf6', data: [900, 1100, 1050, 1500, 1700, 2000, 2200, 2480] },
 ]
@@ -50,9 +50,9 @@ const INTERVIEWS = [
 ]
 
 const ACTIVITY = [
-  { icon: UserPlus, text: 'Nouvelle candidature de Moussa Ndiaye', time: 'il y a 12 min', c: '#0f9d73' },
+  { icon: UserPlus, text: 'Nouvelle candidature de Moussa Ndiaye', time: 'il y a 12 min', c: '#1565d8' },
   { icon: MessageSquare, text: 'Amina Yusuf a répondu à votre message', time: 'il y a 1 h', c: '#3b82f6' },
-  { icon: Star, text: 'Cheikh Fall ajouté à vos favoris', time: 'il y a 3 h', c: '#d4a017' },
+  { icon: Star, text: 'Cheikh Fall ajouté à vos favoris', time: 'il y a 3 h', c: '#e07b00' },
   { icon: Eye, text: 'Votre offre React a dépassé 500 vues', time: 'hier', c: '#8b5cf6' },
 ]
 
@@ -118,8 +118,8 @@ function AreaChart({ data, labels }) {
         onMouseLeave={() => setHover(null)} onTouchEnd={() => setHover(null)}>
         <defs>
           <linearGradient id="dpArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#0f9d73" stopOpacity=".38" />
-            <stop offset="1" stopColor="#0f9d73" stopOpacity="0" />
+            <stop offset="0" stopColor="#1565d8" stopOpacity=".38" />
+            <stop offset="1" stopColor="#1565d8" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, 0.33, 0.66, 1].map((t) => {
@@ -135,11 +135,11 @@ function AreaChart({ data, labels }) {
           <text key={i} x={x(i)} y={H - 6} textAnchor="middle" className="dp-axis">{l}</text>
         ))}
         <path d={area} fill="url(#dpArea)" />
-        <path d={line} fill="none" stroke="#0f9d73" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={line} fill="none" stroke="#1565d8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} className="dp-cursor" />
-            <circle cx={x(hover)} cy={y(data[hover])} r="6" fill="#fff" stroke="#0f9d73" strokeWidth="3" />
+            <circle cx={x(hover)} cy={y(data[hover])} r="6" fill="#fff" stroke="#1565d8" strokeWidth="3" />
           </g>
         )}
       </svg>

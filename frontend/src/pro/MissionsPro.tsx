@@ -9,7 +9,7 @@ import { Field, Tags } from "../forms-pro/FormsPro";
 import "../forms-pro/forms-pro.css";
 
 const STAT = { en_cours: "En cours", en_pause: "En pause", terminee: "Terminée", annulee: "Annulée" };
-const COLOR = { en_cours: "#0f9d73", en_pause: "#f59e0b", terminee: "#3b82f6", annulee: "#94a3b8" };
+const COLOR = { en_cours: "#1565d8", en_pause: "#f59e0b", terminee: "#3b82f6", annulee: "#94a3b8" };
 const ini = (s) => (s || "?").split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const fd = (d) => (d ? new Date(d + "T12:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "");
 const late = (m) => m.statut === "en_cours" && m.date_fin && new Date(m.date_fin + "T23:59:59") < new Date();
@@ -22,7 +22,7 @@ function Card({ m, open, toggle, act }) {
   const [sure, setSure] = useState(false);
   useEffect(() => setVal(m.avancement), [m.avancement]);
   const isLate = late(m);
-  const color = isLate ? "#ef4444" : COLOR[m.statut] || "#0f9d73";
+  const color = isLate ? "#ef4444" : COLOR[m.statut] || "#1565d8";
   const done = m.jalons.filter((j) => j.fait).length;
   const closed = m.statut === "terminee" || m.statut === "annulee";
   const commit = () => { if (val !== m.avancement) act(() => api("/missions/" + m.id, "PATCH", { avancement: val }), "Avancement mis à jour"); };

@@ -1,13 +1,13 @@
 .dp{
-  --dp-card:#ffffff; --dp-soft:#f1f5f3; --dp-text:#0e1f19; --dp-muted:#667a71;
-  --dp-border:rgba(14,60,44,.10); --dp-g1:#06402f; --dp-g2:#0f9d73; --dp-gold:#e3b023;
-  --dp-track:rgba(15,157,115,.12); --dp-grid:rgba(14,60,44,.08);
-  --dp-shadow:0 1px 2px rgba(6,40,30,.05),0 10px 26px -14px rgba(6,40,30,.25);
+  --dp-card:#ffffff; --dp-soft:#eef3fb; --dp-text:#0e1a2e; --dp-muted:#5f7090;
+  --dp-border:rgba(14,40,90,.10); --dp-g1:#0a3a8c; --dp-g2:#1565d8; --dp-gold:#f7941d;
+  --dp-track:rgba(21,101,216,.12); --dp-grid:rgba(14,40,90,.08);
+  --dp-shadow:0 1px 2px rgba(6,24,60,.05),0 10px 26px -14px rgba(6,24,60,.25);
   display:flex; flex-direction:column; gap:16px; padding:6px 0 120px; color:var(--dp-text);
   font-family:inherit; max-width:1280px; margin:0 auto;
 }
 :is(.dark,[data-theme="dark"],[data-bs-theme="dark"],.theme-dark) .dp{
-  --dp-card:#10201a; --dp-soft:#16291f; --dp-text:#e8f3ee; --dp-muted:#8aa398;
+  --dp-card:#0f1b2d; --dp-soft:#152540; --dp-text:#e8eef8; --dp-muted:#93a6c4;
   --dp-border:rgba(255,255,255,.08); --dp-track:rgba(255,255,255,.08); --dp-grid:rgba(255,255,255,.07);
   --dp-shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -16px rgba(0,0,0,.6);
 }
@@ -22,7 +22,7 @@
 
 /* hero */
 .dp-hero{position:relative;overflow:hidden;border-radius:24px;padding:26px 22px;color:#fff;
-  background:linear-gradient(135deg,#052e22 0%,#0a5a42 55%,#0f9d73 120%);
+  background:linear-gradient(135deg,#052e22 0%,#0a3d8f 55%,#1565d8 120%);
   box-shadow:0 18px 40px -18px rgba(6,64,47,.7)}
 .dp-hero-glow{position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;
   background:radial-gradient(circle,rgba(227,176,35,.55),transparent 65%);filter:blur(4px)}
@@ -34,7 +34,7 @@
 .dp-hero p{opacity:.88;font-size:14.5px;line-height:1.5;max-width:520px;position:relative}
 .dp-hero-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;position:relative;z-index:1}
 .dp-btn{display:inline-flex;align-items:center;gap:7px;padding:11px 16px;border-radius:14px;font-weight:700;font-size:14px;transition:.2s}
-.dp-btn-gold{background:var(--dp-gold);color:#2a2005}
+.dp-btn-gold{background:var(--dp-gold);color:#2a1a05}
 .dp-btn-gold:hover{transform:translateY(-2px);box-shadow:0 10px 20px -8px rgba(227,176,35,.8)}
 .dp-btn-ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .dp-btn-ghost:hover{background:rgba(255,255,255,.24)}
@@ -54,8 +54,8 @@
 .dp-ico{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;color:var(--c);
   background:color-mix(in srgb,var(--c) 15%,transparent)}
 .dp-ico.sm{width:30px;height:30px;border-radius:10px;flex:none}
-.dp-delta{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:800;color:#0f9d73;
-  background:rgba(15,157,115,.12);padding:4px 8px;border-radius:99px}
+.dp-delta{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:800;color:#1565d8;
+  background:rgba(21,101,216,.12);padding:4px 8px;border-radius:99px}
 .dp-kpi-val{font-size:28px;font-weight:800;letter-spacing:-.03em;margin-top:12px;line-height:1}
 .dp-kpi-lab{font-size:12.5px;color:var(--dp-muted);margin:4px 0 8px}
 .dp-spark{width:100%;height:34px;display:block}
@@ -96,7 +96,7 @@
 .dp-offer-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
 .dp-offer-n{display:inline-flex;gap:4px;align-items:center;font-size:12px;font-weight:700;color:var(--dp-muted)}
 .dp-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px}
-.dp-badge.ok{background:rgba(15,157,115,.15);color:#0f9d73}
+.dp-badge.ok{background:rgba(21,101,216,.15);color:#1565d8}
 .dp-badge.warn{background:rgba(227,176,35,.2);color:#b88a07}
 .dp-badge.mute{background:var(--dp-track);color:var(--dp-muted)}
 
@@ -104,7 +104,7 @@
 .dp-talents{display:flex;flex-direction:column;gap:12px}
 .dp-talents li{display:flex;align-items:center;gap:12px}
 .dp-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;font-weight:800;font-size:14px;
-  background:linear-gradient(135deg,#1d6b3c,#d4a017)}
+  background:linear-gradient(135deg,#1d6b3c,#e07b00)}
 .dp-talent-txt{display:flex;flex-direction:column;min-width:0;flex:1}
 .dp-talent-txt strong{font-size:14px}
 .dp-talent-txt span{font-size:12px;color:var(--dp-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

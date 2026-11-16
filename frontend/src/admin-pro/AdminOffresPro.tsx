@@ -11,7 +11,7 @@ import "./admin-users-pro.css";
 import "./admin-offres-pro.css";
 
 const PAGE = 50;
-const OCOLOR = { active: "#0f9d73", expiree: "#f59e0b", archivee: "#94a3b8" };
+const OCOLOR = { active: "#1565d8", expiree: "#f59e0b", archivee: "#94a3b8" };
 const OLAB = { active: "Active", expiree: "Expirée", archivee: "Archivée" };
 const SORTS = [["recent", "Plus récentes"], ["ancien", "Plus anciennes"], ["az", "Titre A → Z"], ["cand", "Plus de candidats"]];
 
@@ -116,7 +116,7 @@ export function AdminOffres() {
   });
 
   const tiles = [
-    ["", "Toutes les offres", Briefcase, "#0f5d46", c?.total],
+    ["", "Toutes les offres", Briefcase, "#0b4fb3", c?.total],
     ["active", "Actives", CheckCircle2, OCOLOR.active, c?.active],
     ["expiree", "Expirées", Clock, OCOLOR.expiree, c?.expiree],
     ["archivee", "Archivées", Archive, OCOLOR.archivee, c?.archivee],

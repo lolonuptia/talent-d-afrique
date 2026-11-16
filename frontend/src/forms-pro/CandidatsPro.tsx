@@ -21,7 +21,7 @@ const COL = { recue: "#3b82f6", en_cours: "#a855f7", entretien: "#f59e0b", accep
 const col = (s) => COL[s] ?? "#64748b";
 const lab = (s) => String(s).replace(/_/g, " ");
 const PAGE = 100;
-const MEDAL = ["#e3b023", "#9ca3af", "#c2793a"];
+const MEDAL = ["#f7941d", "#9ca3af", "#c2793a"];
 const scoreColor = (p) => (p >= 75 ? "#10b981" : p >= 50 ? "#f59e0b" : "#ef4444");
 
 function Ring({ v }) {

@@ -7,8 +7,9 @@ export default function Header() {
   return (
     <header className="border-b border-slate-100">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="text-xl font-bold text-blue-700">
-          Talent<span className="text-orange-500">Afrique</span>
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-blue-700">
+          <img src="/logo-mark.png" alt="TIBA" className="h-9 w-auto" />
+        <span className="font-extrabold text-blue-700">TIBA</span>
         </Link>
 
         {/* Navigation desktop */}

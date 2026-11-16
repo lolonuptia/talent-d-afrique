@@ -1,4 +1,4 @@
-::selection{background:var(--kente);color:#2a2000}
+::selection{background:var(--kente);color:#2a1a00}
 html{scroll-behavior:smooth}
 *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .ni{display:grid;place-items:center}

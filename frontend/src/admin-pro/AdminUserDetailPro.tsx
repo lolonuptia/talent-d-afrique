@@ -16,13 +16,13 @@ import "./admin-pro.css";
 import "./admin-user-detail.css";
 
 const PROFIL = { etudiant: "Étudiant", freelance: "Freelance", entreprise: "Entreprise", ecole: "École" };
-const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#14a07a" };
+const PCOLOR = { etudiant: "#3b82f6", freelance: "#a855f7", entreprise: "#f59e0b", ecole: "#2f7be5" };
 const STATUT = { actif: "Actif", suspendu: "Suspendu", supprime: "Supprimé" };
 const SCOLOR = { actif: "#34d399", suspendu: "#f87171", supprime: "#94a3b8" };
-const OCOLOR = { active: "#0f9d73", expiree: "#f59e0b", archivee: "#94a3b8" };
+const OCOLOR = { active: "#1565d8", expiree: "#f59e0b", archivee: "#94a3b8" };
 const OLAB = { active: "Active", expiree: "Expirée", archivee: "Archivée" };
 const AMETA = {
-  suspension_compte: [Ban, "#ef4444"], reactivation_compte: [RotateCcw, "#0f9d73"], suppression_offre: [Trash2, "#ef4444"],
+  suspension_compte: [Ban, "#ef4444"], reactivation_compte: [RotateCcw, "#1565d8"], suppression_offre: [Trash2, "#ef4444"],
   archivage_offre_moderation: [Briefcase, "#f59e0b"], verification_email_manuelle: [MailCheck, "#3b82f6"],
   promotion_admin: [ShieldCheck, "#a855f7"], retrait_admin: [ShieldOff, "#f59e0b"], deconnexion_forcee: [LogOut, "#f59e0b"],
   lien_reinitialisation_envoye: [KeyRound, "#3b82f6"], purge_compte: [Trash2, "#dc2626"],
@@ -92,7 +92,7 @@ export function AdminUserDetail() {
   const post = (p, m) => async () => { await api("/admin/utilisateurs/" + id + p, m || "PATCH"); toast.success("Fait."); s.reload(); };
 
   const stats = [
-    ["Offres", f.compteurs.offres, "#0f5d46", Briefcase],
+    ["Offres", f.compteurs.offres, "#0b4fb3", Briefcase],
     ["Candidatures reçues", f.compteurs.candidatures_recues, "#3b82f6", FileText],
     ["Candidatures envoyées", f.compteurs.candidatures_envoyees, "#a855f7", Send],
   ];

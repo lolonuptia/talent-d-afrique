@@ -72,8 +72,8 @@ export default function ProfilPro() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <b>{nom}</b>
             <small>{[f.secteur, f.localisation].filter(Boolean).join(" · ") || "Complétez votre profil"}</small>
-            <div style={{ height: 6, borderRadius: 99, background: "rgba(15,157,115,.14)", marginTop: 8, overflow: "hidden" }}>
-              <div style={{ width: pct + "%", height: "100%", borderRadius: 99, background: "linear-gradient(90deg,#0f9d73,#e3b023)", transition: "width .5s" }} />
+            <div style={{ height: 6, borderRadius: 99, background: "rgba(21,101,216,.14)", marginTop: 8, overflow: "hidden" }}>
+              <div style={{ width: pct + "%", height: "100%", borderRadius: 99, background: "linear-gradient(90deg,#1565d8,#f7941d)", transition: "width .5s" }} />
             </div>
             <small>Profil complété à {pct} %</small>
           </div>

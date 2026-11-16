@@ -91,15 +91,15 @@ function AreaChart({ data, labels }) {
   return (
     <div className="dp-chart">
       <svg ref={ref} viewBox={"0 0 " + W + " " + H} onMouseMove={onMove} onTouchMove={onMove} onMouseLeave={() => setHover(null)} onTouchEnd={() => setHover(null)}>
-        <defs><linearGradient id="dpArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0f9d73" stopOpacity=".38" /><stop offset="1" stopColor="#0f9d73" stopOpacity="0" /></linearGradient></defs>
+        <defs><linearGradient id="dpArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1565d8" stopOpacity=".38" /><stop offset="1" stopColor="#1565d8" stopOpacity="0" /></linearGradient></defs>
         {[0, 0.33, 0.66, 1].map((t) => {
           const val = Math.round(max * t);
           return (<g key={t}><line x1={P.l} x2={W - P.r} y1={y(val)} y2={y(val)} className="dp-grid-line" /><text x={P.l - 6} y={y(val) + 4} textAnchor="end" className="dp-axis">{val}</text></g>);
         })}
         {labels.map((l, i) => i % step === 0 && <text key={i} x={x(i)} y={H - 6} textAnchor="middle" className="dp-axis">{l}</text>)}
         <path d={area} fill="url(#dpArea)" />
-        <path d={line} fill="none" stroke="#0f9d73" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        {hover !== null && (<g><line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} className="dp-cursor" /><circle cx={x(hover)} cy={y(data[hover])} r="6" fill="#fff" stroke="#0f9d73" strokeWidth="3" /></g>)}
+        <path d={line} fill="none" stroke="#1565d8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {hover !== null && (<g><line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} className="dp-cursor" /><circle cx={x(hover)} cy={y(data[hover])} r="6" fill="#fff" stroke="#1565d8" strokeWidth="3" /></g>)}
       </svg>
       {hover !== null && (
         <div className="dp-tip" style={{ left: (x(hover) / W) * 100 + "%", top: (y(data[hover]) / H) * 100 + "%" }}>
@@ -160,8 +160,8 @@ export default function OverviewPro() {
   const hello = h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
 
   const KPIS = [
-    { label: "Offres actives", value: offres.filter((o) => o.statut === "active").length, icon: Briefcase, color: "#0f9d73", data: spark(offres.map((o) => toDate(o.created_at))) },
-    { label: "Candidatures", value: cands.length, delta: last7 ? "+" + last7 + " / 7 j" : "", icon: Users, color: "#d4a017", data: spark(candDates) },
+    { label: "Offres actives", value: offres.filter((o) => o.statut === "active").length, icon: Briefcase, color: "#1565d8", data: spark(offres.map((o) => toDate(o.created_at))) },
+    { label: "Candidatures", value: cands.length, delta: last7 ? "+" + last7 + " / 7 j" : "", icon: Users, color: "#e07b00", data: spark(candDates) },
     { label: "Entretiens à venir", value: venir.length, icon: CalendarDays, color: "#3b82f6", data: spark(entretiens.map((x) => toDate(x.date_heure))) },
     { label: "Acceptées", value: n("acceptee"), icon: CheckCircle2, color: "#8b5cf6" },
   ];
@@ -258,7 +258,7 @@ export default function OverviewPro() {
               <ul className="dp-feed">
                 {notifs.slice(0, 4).map((a) => (
                   <li key={a.id}>
-                    <span className="dp-ico sm" style={{ "--c": a.lue ? "#94a3b8" : "#0f9d73" }}><Bell size={14} /></span>
+                    <span className="dp-ico sm" style={{ "--c": a.lue ? "#94a3b8" : "#1565d8" }}><Bell size={14} /></span>
                     <div><p style={{ fontWeight: a.lue ? 400 : 700 }}>{a.titre}</p><small><Clock size={11} /> {fdate(a.created_at)}</small></div>
                   </li>
                 ))}

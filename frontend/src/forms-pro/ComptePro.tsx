@@ -11,7 +11,7 @@ import "./forms-pro.css";
 
 const strength = (p) => [p.length >= 8, /[A-Z]/.test(p) && /[a-z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
 const SL = ["Trop court", "Faible", "Moyen", "Bon", "Excellent"];
-const SC = ["#ef4444", "#ef4444", "#f59e0b", "#14a07a", "#10b981"];
+const SC = ["#ef4444", "#ef4444", "#f59e0b", "#2f7be5", "#10b981"];
 
 function PwInput({ value, onChange, placeholder, autoComplete }) {
   const [show, setShow] = useState(false);

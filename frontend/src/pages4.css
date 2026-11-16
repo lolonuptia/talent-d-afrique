@@ -7,7 +7,7 @@
 .x-col{flex:1;min-width:38px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .x-col b{font-size:12px}
 .x-col-t{flex:1;width:100%;display:flex;align-items:flex-end}
-.x-col-t i{display:block;width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#14a07a,var(--brand));transition:height .6s}
+.x-col-t i{display:block;width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#2f7be5,var(--brand));transition:height .6s}
 .x-col span{font-size:11px;color:var(--mut);white-space:nowrap}
 .x-who{display:flex;align-items:center;gap:10px}
 .x-who .x-av{width:34px;height:34px;font-size:13px}

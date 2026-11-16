@@ -60,11 +60,11 @@ export function AdminHome() {
     <Page title="Administration">
       <Async s={s}>{({ g, d }) => {
         const kpi: [ReactNode, string, number | string, string][] = [
-          [<Users size={18} />, "Comptes", g.total_utilisateurs, "#0f5d46"],
+          [<Users size={18} />, "Comptes", g.total_utilisateurs, "#0b4fb3"],
           [<GraduationCap size={18} />, "Étudiants", g.total_etudiants, "#3b82f6"],
           [<Laptop size={18} />, "Freelances", g.total_freelances, "#a855f7"],
           [<Building2 size={18} />, "Entreprises", g.total_entreprises, "#f59e0b"],
-          [<School size={18} />, "Écoles", g.total_ecoles, "#14a07a"],
+          [<School size={18} />, "Écoles", g.total_ecoles, "#2f7be5"],
           [<Briefcase size={18} />, "Offres actives", g.total_offres_actives, "#0ea5e9"],
           [<FileText size={18} />, "Candidatures", g.total_candidatures, "#6366f1"],
           [<Percent size={18} />, "Taux d'acceptation", g.taux_matching_moyen + " %", "#10b981"],

@@ -129,7 +129,7 @@ function Layout() {
     <div className={"app" + (mini ? " mini" : "")}>
       <aside className="side">
         <div className="side-top">
-          <div className="logo"><span className="logo-mark">T</span><span className="nl">TIBA</span></div>
+          <div className="logo"><img src="/logo-mark.png" alt="TIBA" className="tiba-logo" /><span className="nl">TIBA</span></div>
           <button className="side-toggle" onClick={() => setMini(!mini)} title="Réduire / agrandir le menu">{mini ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}</button>
         </div>
         <div className="who nl">{user.nom}</div>

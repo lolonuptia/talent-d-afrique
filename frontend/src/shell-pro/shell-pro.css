@@ -1,6 +1,6 @@
 /* shell-pro : charge en dernier, surcharge la coque existante */
 :root{--sp-glass:color-mix(in srgb,var(--bg) 78%,transparent)}
-body{background:radial-gradient(900px 520px at 100% -8%,rgba(15,157,115,.10),transparent 60%),radial-gradient(700px 420px at -8% 108%,rgba(227,176,35,.08),transparent 60%),var(--bg);background-attachment:fixed}
+body{background:radial-gradient(900px 520px at 100% -8%,rgba(21,101,216,.10),transparent 60%),radial-gradient(700px 420px at -8% 108%,rgba(227,176,35,.08),transparent 60%),var(--bg);background-attachment:fixed}
 html[data-theme=dark] body{background:radial-gradient(900px 520px at 100% -8%,rgba(25,163,122,.10),transparent 60%),radial-gradient(700px 420px at -8% 108%,rgba(227,176,35,.05),transparent 60%),var(--bg);background-attachment:fixed}
 
 /* menu lateral */
@@ -13,9 +13,9 @@ html[data-theme=dark] .side{background:radial-gradient(240px 180px at 0 0,rgba(2
 .side a:hover{background:rgba(255,255,255,.07);color:#fff;transform:none}
 .side a .ni svg{transition:transform .18s}
 .side a:hover .ni svg{transform:scale(1.1)}
-.side a.active{background:linear-gradient(135deg,rgba(15,157,115,.96),rgba(20,160,122,.78));color:#fff;box-shadow:0 10px 24px -12px rgba(15,157,115,.95),inset 0 0 0 1px rgba(255,255,255,.14)}
+.side a.active{background:linear-gradient(135deg,rgba(21,101,216,.96),rgba(20,160,122,.78));color:#fff;box-shadow:0 10px 24px -12px rgba(21,101,216,.95),inset 0 0 0 1px rgba(255,255,255,.14)}
 .side a.active::before{content:"";position:absolute;left:-14px;top:24%;bottom:24%;width:4px;border-radius:0 4px 4px 0;background:var(--kente)}
-.side a .nb{background:var(--kente);color:#2a2000;font-weight:800}
+.side a .nb{background:var(--kente);color:#2a1a00;font-weight:800}
 .side-out{border-radius:12px;font-weight:600}
 .side-out:hover{background:rgba(225,29,72,.22);border-color:rgba(225,29,72,.4);color:#fff;transform:none}
 .side-toggle{border-radius:10px}

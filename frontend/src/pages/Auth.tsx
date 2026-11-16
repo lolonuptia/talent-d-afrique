@@ -10,7 +10,7 @@ function Shell({ title, sub, children }: { title: string; sub?: string; children
   return (
     <div className="x-auth">
       <aside className="x-auth-art">
-        <div className="x-auth-logo"><span className="logo-mark">T</span>TIBA</div>
+        <div className="x-auth-logo"><img src="/logo-mark.png" alt="TIBA" className="tiba-logo" />TIBA</div>
         <h2>Recrutez les meilleurs talents africains.</h2>
         <p>Publiez vos offres, recevez des candidatures classées et planifiez vos entretiens depuis un seul endroit.</p>
         <ul>
@@ -52,7 +52,7 @@ const Submit = ({ busy, children }: { busy: boolean; children: ReactNode }) => (
 
 const strength = (p: string) => [p.length >= 8, /[A-Z]/.test(p) && /[a-z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
 const SL = ["Trop court", "Faible", "Moyen", "Bon", "Excellent"];
-const SC = ["#ef4444", "#ef4444", "#f59e0b", "#14a07a", "#10b981"];
+const SC = ["#ef4444", "#ef4444", "#f59e0b", "#2f7be5", "#10b981"];
 
 export function Login() {
   const { login } = useAuth();

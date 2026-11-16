@@ -8,7 +8,7 @@ import { Err } from "../ui";
 
 const strength = (p) => [p.length >= 8, /[A-Z]/.test(p) && /[a-z]/.test(p), /\d/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
 const SL = ["Trop court", "Faible", "Moyen", "Bon", "Excellent"];
-const SC = ["#ef4444", "#ef4444", "#f59e0b", "#14a07a", "#10b981"];
+const SC = ["#ef4444", "#ef4444", "#f59e0b", "#2f7be5", "#10b981"];
 const FEATS = [
   [Target, "Classement par score", "Les candidats sont triés automatiquement selon votre offre."],
   [CalendarCheck, "Entretiens en un clic", "Planification par créneaux, le candidat est prévenu automatiquement."],
@@ -31,7 +31,7 @@ function Shell({ title, sub, children }) {
     <div className="sp-auth">
       <aside className="sp-art">
         <div className="sp-blob b1" /><div className="sp-blob b2" />
-        <Link to="/login" className="sp-logo"><span>T</span>TIBA</Link>
+        <Link to="/login" className="sp-logo"><img src="/logo-mark.png" alt="TIBA" className="tiba-logo" />TIBA</Link>
         <div className="sp-art-body">
           <span className="sp-pill"><Sparkles size={14} />Espace recruteur</span>
           <h2>Recrutez les meilleurs talents africains.</h2>
