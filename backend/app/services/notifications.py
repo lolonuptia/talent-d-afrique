@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.notification import Notification
 from app.models.user import User
-from app.services.email_template import habiller_email
+from app.services.email_template import habiller_email, html_vers_texte
 
 resend.api_key = settings.resend_api_key
 
@@ -61,6 +61,7 @@ def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> No
                 "to": [destinataire.email],
                 "subject": sujet,
                 "html": habiller_email(contenu_html, sujet),
+                "text": html_vers_texte(contenu_html) + "\n\n-- \nMessage automatique envoy\u00e9 par TIBA, merci de ne pas y r\u00e9pondre.",
             }
         )
     except Exception as exc:  # noqa: BLE001
