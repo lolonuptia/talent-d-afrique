@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -21,6 +22,8 @@ from app.schemas.user import RefreshRequest, TokenResponse, UserCreate, UserLogi
 from app.services.verification import envoyer_verification
 
 router = APIRouter()
+
+DOMAINES_JETABLES = {"mailinator.com", "yopmail.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "trashmail.com", "sharklasers.com", "getnada.com", "throwawaymail.com", "dispostable.com", "maildrop.cc", "fakeinbox.com", "mohmal.com"}
 
 COOKIE_SECURE = settings.environment == "production"
 COOKIE_SAMESITE = "none" if COOKIE_SECURE else "lax"  # Vercel <-> Render = cross-site
@@ -58,6 +61,12 @@ def register(
             detail="Le consentement aux CGU est obligatoire.",
         )
 
+    if payload.email.split("@")[-1].lower() in DOMAINES_JETABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Les adresses email jetables ne sont pas acceptees.",
+        )
+
     existing_user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if existing_user:
         raise HTTPException(
@@ -74,7 +83,14 @@ def register(
         consent_version=payload.consent_version,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un compte existe deja avec cet email.",
+        )
     db.refresh(user)
     envoyer_verification(user)
 
@@ -155,6 +171,8 @@ def refresh(
             detail="Session expiree. Reconnectez-vous.",
         )
 
+    revoquer(db, refresh_token)  # rotation : l'ancien refresh token ne sert qu'une fois
+    db.commit()
     new_access_token = create_access_token(str(user.id))
     new_refresh_token = create_refresh_token(str(user.id))
     response.set_cookie(
