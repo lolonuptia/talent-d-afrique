@@ -1,6 +1,10 @@
 package com.talentdafrique.app.ui.screens.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
+import com.talentdafrique.app.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,18 +85,15 @@ fun LoginScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White.copy(alpha = 0.16f),
-                    modifier = Modifier.height(64.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.White,
+                    modifier = Modifier.size(84.dp),
                 ) {
-                    Box(modifier = Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "T",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                        )
-                    }
+                    Image(
+                        painter = painterResource(R.drawable.logo_mark),
+                        contentDescription = "TIBA",
+                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                    )
                 }
                 Text(
                     text = "TIBA",

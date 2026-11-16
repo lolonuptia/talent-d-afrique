@@ -44,3 +44,9 @@ contenu-*.txt
 *.bak_*
 *.tiba.bak
 contenu-*.txt
+
+# sauvegardes locales
+_sauvegardes_res/
+sauvegarde_src_*/
+mobile_backup*/
+*.json.bak
