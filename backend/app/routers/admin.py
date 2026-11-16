@@ -79,6 +79,7 @@ def list_all_users(
             "is_admin": bool(u.is_admin),
             "statut": _statut_compte(u),
             "email_verifie": u.email_verifie_at is not None,
+            "statut_validation": u.statut_validation,
             "deleted_at": u.deleted_at,
             "created_at": u.created_at,
         }

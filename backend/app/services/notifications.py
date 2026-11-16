@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.notification import Notification
 from app.models.user import User
+from app.services.email_template import habiller_email
 
 resend.api_key = settings.resend_api_key
 
@@ -59,7 +60,7 @@ def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> No
                 "from": settings.mail_from,
                 "to": [destinataire.email],
                 "subject": sujet,
-                "html": contenu_html + PIED_EMAIL,
+                "html": habiller_email(contenu_html, sujet),
             }
         )
     except Exception as exc:  # noqa: BLE001

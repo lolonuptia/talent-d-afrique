@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, String, false
+from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String, false
 
 from app.core.database import Base
 from app.core.types import GUID
@@ -36,6 +36,11 @@ class User(Base):
     # le talent autorise les entreprises aupres desquelles il postule a voir son numero
     telephone_partage = Column(Boolean, nullable=False, default=False, server_default=false())
 
+    statut_validation = Column(String, nullable=False, default="validee", server_default="validee")
+    verif_code_hash = Column(String, nullable=True)
+    verif_code_expire_at = Column(DateTime, nullable=True)
+    verif_code_essais = Column(Integer, nullable=False, default=0, server_default="0")
+    verif_code_envoye_at = Column(DateTime, nullable=True)
     email_verifie_at = Column(DateTime, nullable=True)
     mot_de_passe_modifie_at = Column(DateTime, nullable=True)  # invalide les anciennes sessions
 

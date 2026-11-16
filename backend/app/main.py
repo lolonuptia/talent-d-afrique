@@ -38,9 +38,11 @@ from app.routers import (
     users,
 )
 from app.routers import password as password_router
+from app.routers import verification_code as verification_code_router
 from app.routers import portfolio as portfolio_router
 from app.routers import profiles as profiles_router
 from app.routers.admin_plus import router as admin_plus_router
+from app.routers.admin_validation import router as admin_validation_router
 
 verifier_configuration_production(settings)
 
@@ -70,6 +72,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(password_router.router, prefix="/api/auth", tags=["auth"])
+app.include_router(verification_code_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(profiles_router.router, prefix="/api/profiles", tags=["profiles"])
 app.include_router(cv.router, prefix="/api/profiles", tags=["cv"])
@@ -78,6 +81,7 @@ app.include_router(candidatures.router, prefix="/api/candidatures", tags=["candi
 app.include_router(favoris.router, prefix="/api/favoris", tags=["favoris"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(admin_validation_router, prefix="/api/admin", tags=["admin"])
 app.include_router(admin_plus_router, prefix="/api/admin", tags=["admin"])
 app.include_router(talents.router, prefix="/api/talents", tags=["talents"])
 app.include_router(certifications.router, prefix="/api/certifications", tags=["certifications"])

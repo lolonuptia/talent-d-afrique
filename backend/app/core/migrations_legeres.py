@@ -27,3 +27,8 @@ def appliquer_migrations_legeres(engine) -> None:
             conn.execute(text("ALTER TABLE users ADD COLUMN mot_de_passe_modifie_at TIMESTAMP"))
         if "fuseau" not in colonnes_entretiens:
             conn.execute(text("ALTER TABLE entretiens ADD COLUMN fuseau VARCHAR"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verif_code_hash VARCHAR"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verif_code_expire_at TIMESTAMP"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verif_code_envoye_at TIMESTAMP"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verif_code_essais INTEGER NOT NULL DEFAULT 0"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS statut_validation VARCHAR NOT NULL DEFAULT 'validee'"))

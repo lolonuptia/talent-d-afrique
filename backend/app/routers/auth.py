@@ -20,6 +20,7 @@ from app.core.security import (
 from app.models.user import User
 from app.schemas.user import RefreshRequest, TokenResponse, UserCreate, UserLogin, UserOut
 from app.services.verification import envoyer_verification
+from app.services.admin_alertes import notifier_admins_nouvelle_entreprise
 
 router = APIRouter()
 
@@ -81,6 +82,7 @@ def register(
         type_profil=payload.type_profil,
         consent_given_at=datetime.utcnow(),
         consent_version=payload.consent_version,
+        statut_validation="en_attente" if payload.type_profil == "entreprise" else "validee",
     )
     db.add(user)
     try:
@@ -93,6 +95,8 @@ def register(
         )
     db.refresh(user)
     envoyer_verification(user)
+    if user.type_profil == "entreprise":
+        notifier_admins_nouvelle_entreprise(db, user)
 
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))

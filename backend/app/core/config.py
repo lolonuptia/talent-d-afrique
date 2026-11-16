@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     mail_from: str = "TIBA <noreply@tiba.help>"
     frontend_url: str = "http://localhost:5173"
+    admin_email: str = ""
     cv_storage_dir: str = "./storage/cvs"
 
     environment: str = "development"

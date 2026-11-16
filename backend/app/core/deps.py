@@ -59,7 +59,24 @@ def get_current_user(
     return user
 
 
+def verifier_validation(user: User) -> None:
+    """Une entreprise doit etre validee par un administrateur avant d'agir."""
+    statut = getattr(user, "statut_validation", "validee")
+    if settings.require_email_verification and user.type_profil == "entreprise" and statut != "validee":
+        detail = (
+            "Votre demande d'adhesion n'a pas ete retenue."
+            if statut == "refusee"
+            else "Votre compte entreprise est en attente de validation par l'administration."
+        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
 def verifier_email(user: User) -> None:
+    verifier_validation(user)
+    _verifier_email_confirme(user)
+
+
+def _verifier_email_confirme(user: User) -> None:
     """Une entreprise doit avoir confirme son email avant de publier ou chercher des talents."""
     if (
         settings.require_email_verification

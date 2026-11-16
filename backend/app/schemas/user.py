@@ -67,6 +67,7 @@ class UserOut(BaseModel):
     type_profil: str
     is_admin: bool = False
     email_verifie: bool = True
+    statut_validation: str = "validee"
     telephone: str | None = None
     telephone_partage: bool = False
     created_at: datetime

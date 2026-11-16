@@ -56,6 +56,10 @@ def test_entreprise_non_verifiee_bloquee_puis_debloquee(client, db_session, monk
 
     token = creer_token_verif(_user(db_session, "ent@example.com"))
     assert client.post("/api/auth/verify-email", json={"token": token}).status_code == 200
+    # email confirme, mais l'entreprise attend encore la validation de l'admin
+    assert client.post("/api/offres", headers=h, json=offre).status_code == 403
+    _user(db_session, "ent@example.com").statut_validation = "validee"
+    db_session.commit()
     assert client.post("/api/offres", headers=h, json=offre).status_code == 201
     assert client.get("/api/talents", headers=h).status_code == 200
     # lien reutilisable sans effet de bord
