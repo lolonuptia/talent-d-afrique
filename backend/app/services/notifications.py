@@ -50,6 +50,9 @@ def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> No
         print(f"[EMAIL NON ENVOYE - pas de cle API] A: {destinataire.email} | Sujet: {sujet}")
         return
 
+    if destinataire.email.lower().endswith(("@example.com", "@example.org", "@example.net")):
+        print(f"[EMAIL IGNORE - domaine de test] {destinataire.email} | {sujet}")
+        return
     try:
         resend.Emails.send(
             {
