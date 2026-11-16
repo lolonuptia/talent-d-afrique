@@ -12,6 +12,12 @@ from app.models.user import User
 
 resend.api_key = settings.resend_api_key
 
+PIED_EMAIL = (
+    '<hr><p style="color:#888;font-size:12px">'
+    "Message automatique envoy&eacute; par TIBA, merci de ne pas y r&eacute;pondre."
+    "</p>"
+)
+
 
 def creer_notification(
     db: Session,
@@ -47,10 +53,10 @@ def _envoyer_email_sync(destinataire: User, sujet: str, contenu_html: str) -> No
     try:
         resend.Emails.send(
             {
-                "from": "TIBA <notifications@talentdafrique.com>",
+                "from": settings.mail_from,
                 "to": [destinataire.email],
                 "subject": sujet,
-                "html": contenu_html,
+                "html": contenu_html + PIED_EMAIL,
             }
         )
     except Exception as exc:  # noqa: BLE001

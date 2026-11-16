@@ -34,3 +34,8 @@ COMMANDES.txt
 backend/.venv/
 backend/venv/
 backend/storage/
+
+*.bak
+*.bak_*
+*.tiba.bak
+contenu-*.txt

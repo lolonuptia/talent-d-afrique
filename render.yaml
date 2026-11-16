@@ -32,6 +32,8 @@ services:
         value: https://talent-afrique-web.onrender.com
       - key: RESEND_API_KEY
         sync: false
+      - key: MAIL_FROM
+        value: "TIBA <noreply@tiba.help>"
 
   # ---------- FRONTEND ----------
   - type: web

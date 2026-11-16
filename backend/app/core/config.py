@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     resend_api_key: str = ""
+    mail_from: str = "TIBA <noreply@tiba.help>"
     frontend_url: str = "http://localhost:5173"
     cv_storage_dir: str = "./storage/cvs"
 

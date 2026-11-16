@@ -15,7 +15,7 @@ from app.models.profiles import EntrepriseProfile
 from app.models.user import User
 from app.schemas.admin import AdminLogOut, StatistiquesGlobales
 from app.services.admin_logs import logger_action_admin
-from app.services.notifications import creer_notification
+from app.services.notifications import creer_notification, envoyer_email_notification
 from app.services.offres import expirer_offres_perimees
 
 router = APIRouter()
@@ -132,6 +132,7 @@ def suspendre_utilisateur(
         cible_id=str(user_id),
         details=" | ".join(parties) or None,
     )
+    envoyer_email_notification(user, "Votre compte est suspendu", "<p>Votre compte TIBA a &eacute;t&eacute; suspendu par un administrateur de la plateforme.</p><p>Si vous pensez qu'il s'agit d'une erreur, contactez l'administration de TIBA.</p>")
     return {"message": "Compte suspendu."}
 
 
@@ -159,6 +160,7 @@ def reactiver_utilisateur(
         cible_type="user",
         cible_id=str(user_id),
     )
+    envoyer_email_notification(user, "Votre compte est r&eacute;activ&eacute;", "<p>Votre compte TIBA est de nouveau actif. Vous pouvez vous reconnecter.</p>")
     return {"message": "Compte reactive."}
 
 
