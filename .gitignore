@@ -39,3 +39,8 @@ backend/storage/
 *.bak_*
 *.tiba.bak
 contenu-*.txt
+
+*.bak
+*.bak_*
+*.tiba.bak
+contenu-*.txt
