@@ -50,3 +50,6 @@ _sauvegardes_res/
 sauvegarde_src_*/
 mobile_backup*/
 *.json.bak
+
+# sauvegardes des scripts de correction
+_backup_*/
