@@ -27,6 +27,12 @@ interface AuthApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body body: com.talentdafrique.app.data.remote.dto.ResetPasswordRequest)
 
+    @POST("auth/verify-code")
+    suspend fun verifyCode(@Body body: com.talentdafrique.app.data.remote.dto.VerifyCodeRequest)
+
+    @POST("auth/resend-code")
+    suspend fun resendCode()
+
     @GET("auth/me")
     suspend fun me(): UserDto
 }

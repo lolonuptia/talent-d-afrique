@@ -45,6 +45,7 @@ object Routes {
     const val NOTIFICATIONS = "notifications"
     const val PROFILE = "profile"
     const val FORGOT_PASSWORD = "forgot_password"
+    const val VERIFY_CODE = "verify_code"
 
     const val FAVORIS = "favoris"
     const val ENTRETIENS = "entretiens"
@@ -132,7 +133,7 @@ fun TalentDAfriqueNavGraph(
             composable(Routes.LOGIN) {
                 LoginScreen(
                     onLoginSuccess = {
-                        navController.navigate(Routes.HOME) {
+                        navController.navigate(Routes.VERIFY_CODE) {
                             popUpTo(Routes.LOGIN) { inclusive = true }
                         }
                     },
@@ -150,11 +151,26 @@ fun TalentDAfriqueNavGraph(
             composable(Routes.REGISTER) {
                 RegisterScreen(
                     onRegisterSuccess = {
-                        navController.navigate(Routes.HOME) {
+                        navController.navigate(Routes.VERIFY_CODE) {
                             popUpTo(Routes.LOGIN) { inclusive = true }
                         }
                     },
                     onNavigateToLogin = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.VERIFY_CODE) {
+                com.talentdafrique.app.ui.screens.auth.VerifyCodeScreen(
+                    onVerified = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.VERIFY_CODE) { inclusive = true }
+                        }
+                    },
+                    onLogout = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.VERIFY_CODE) { inclusive = true }
+                        }
+                    },
                 )
             }
 

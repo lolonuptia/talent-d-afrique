@@ -70,6 +70,20 @@ class AuthRepository @Inject constructor(
         Result.Error(e.toUserMessage("Impossible de réinitialiser le mot de passe."))
     }
 
+    suspend fun verifyCode(code: String): Result<Unit> = try {
+        authApi.verifyCode(com.talentdafrique.app.data.remote.dto.VerifyCodeRequest(code))
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Code incorrect ou expiré."))
+    }
+
+    suspend fun resendCode(): Result<Unit> = try {
+        authApi.resendCode()
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.toUserMessage("Impossible de renvoyer le code."))
+    }
+
     suspend fun logout() {
         // Le backend ne peut pas invalider le refresh token avant son expiration
         // naturelle (limite connue, section 3 du récap backend) — on se contente

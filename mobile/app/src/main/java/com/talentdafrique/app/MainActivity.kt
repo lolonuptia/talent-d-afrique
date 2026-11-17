@@ -64,7 +64,7 @@ fun TalentDAfriqueRoot(viewModel: SessionViewModel = viewModel()) {
         is SessionState.WrongRole -> WrongRoleScreen(onLogout = viewModel::logout)
         is SessionState.Resolved -> {
             TalentDAfriqueNavGraph(
-                startDestination = if (current.isLoggedIn) Routes.HOME else Routes.LOGIN,
+                startDestination = if (current.isLoggedIn) Routes.VERIFY_CODE else Routes.LOGIN,
             )
         }
     }

@@ -51,6 +51,7 @@ data class UserDto(
     val email: String,
     @Json(name = "type_profil") val typeProfil: TypeProfil,
     @Json(name = "is_admin") val isAdmin: Boolean = false,
+    @Json(name = "email_verifie") val emailVerifie: Boolean = true,
 )
 
 /** Version des CGU affichee a l'inscription (doit etre acceptee par le backend). */
@@ -65,3 +66,6 @@ data class ResetPasswordRequest(
     val code: String,
     @Json(name = "nouveau_mot_de_passe") val nouveauMotDePasse: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class VerifyCodeRequest(val code: String)
