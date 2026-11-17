@@ -70,25 +70,25 @@ app.add_middleware(
 )
 
 from fastapi import Depends as _Depends
-from app.core.deps import exiger_entreprise_validee
+from app.core.deps import exiger_entreprise_validee, exiger_etudiant_verifie
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(password_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(verification_code_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
-app.include_router(profiles_router.router, prefix="/api/profiles", tags=["profiles"])
-app.include_router(cv.router, prefix="/api/profiles", tags=["cv"])
+app.include_router(profiles_router.router, prefix="/api/profiles", tags=["profiles"], dependencies=[_Depends(exiger_etudiant_verifie)])
+app.include_router(cv.router, prefix="/api/profiles", tags=["cv"], dependencies=[_Depends(exiger_entreprise_validee)])
 app.include_router(offres.router, prefix="/api/offres", tags=["offres"])
 app.include_router(candidatures.router, prefix="/api/candidatures", tags=["candidatures"], dependencies=[_Depends(exiger_entreprise_validee)])
-app.include_router(favoris.router, prefix="/api/favoris", tags=["favoris"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(favoris.router, prefix="/api/favoris", tags=["favoris"], dependencies=[_Depends(exiger_entreprise_validee)])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"], dependencies=[_Depends(exiger_entreprise_validee)])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(admin_validation_router, prefix="/api/admin", tags=["admin"])
 app.include_router(admin_plus_router, prefix="/api/admin", tags=["admin"])
 app.include_router(talents.router, prefix="/api/talents", tags=["talents"])
-app.include_router(certifications.router, prefix="/api/certifications", tags=["certifications"])
-app.include_router(portfolio_router.router, prefix="/api/portfolio", tags=["portfolio"])
+app.include_router(certifications.router, prefix="/api/certifications", tags=["certifications"], dependencies=[_Depends(exiger_entreprise_validee)])
+app.include_router(portfolio_router.router, prefix="/api/portfolio", tags=["portfolio"], dependencies=[_Depends(exiger_entreprise_validee)])
 app.include_router(entretiens.router, prefix="/api/entretiens", tags=["entretiens"], dependencies=[_Depends(exiger_entreprise_validee)])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"], dependencies=[_Depends(exiger_entreprise_validee)])
 app.include_router(missions.router, prefix="/api/missions", tags=["missions"], dependencies=[_Depends(exiger_entreprise_validee)])

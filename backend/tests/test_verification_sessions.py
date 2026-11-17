@@ -66,10 +66,11 @@ def test_entreprise_non_verifiee_bloquee_puis_debloquee(client, db_session, monk
     assert client.post("/api/auth/verify-email", json={"token": token}).status_code == 200
 
 
-def test_etudiant_jamais_bloque_par_la_verification(client, monkeypatch):
+def test_etudiant_non_verifie_bloque_cote_serveur(client, monkeypatch):
     monkeypatch.setattr(settings, "require_email_verification", True)
     h = _h(_login(client, _data("etudiant", "etu@example.com", "Aminata")))
-    assert client.get("/api/offres/recommandees", headers=h).status_code == 200
+    assert client.get("/api/offres/recommandees", headers=h).status_code == 403
+    assert client.get("/api/auth/me", headers=h).status_code == 200
 
 
 def test_jeton_de_verification_invalide(client):

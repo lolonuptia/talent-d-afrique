@@ -105,4 +105,28 @@ def exiger_entreprise_validee(current_user: User = Depends(get_current_user)) ->
     """Garde de routeur : une entreprise non validee par l'admin, ou dont l'email n'est pas
     confirme, ne peut rien faire. Sans effet pour les autres profils."""
     verifier_email(current_user)
+    if (
+        settings.require_email_verification
+        and current_user.type_profil == "etudiant"
+        and current_user.email_verifie_at is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirme ton adresse email avec le code recu pour continuer.",
+        )
+    return current_user
+
+
+def exiger_etudiant_verifie(current_user: User = Depends(get_current_user)) -> User:
+    """Garde reservee aux etudiants : le code recu par email doit etre saisi. N'affecte
+    aucun autre profil (une entreprise en attente doit pouvoir completer son profil)."""
+    if (
+        settings.require_email_verification
+        and current_user.type_profil == "etudiant"
+        and current_user.email_verifie_at is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirme ton adresse email avec le code recu pour continuer.",
+        )
     return current_user

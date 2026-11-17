@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, verifier_email
+from app.core.deps import exiger_entreprise_validee, get_current_user, verifier_email
 from app.models.candidature import Candidature
 from app.models.favori import Favori
 from app.models.offre import Offre
@@ -103,7 +103,11 @@ def list_my_offres(
     )
 
 
-@router.get("/recommandees", response_model=list[OffreAvecScore])
+@router.get(
+    "/recommandees",
+    response_model=list[OffreAvecScore],
+    dependencies=[Depends(exiger_entreprise_validee)],
+)
 def list_offres_recommandees(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
