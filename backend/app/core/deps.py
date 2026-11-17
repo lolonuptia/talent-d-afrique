@@ -99,3 +99,10 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Reserve aux administrateurs.",
         )
     return current_user
+
+
+def exiger_entreprise_validee(current_user: User = Depends(get_current_user)) -> User:
+    """Garde de routeur : une entreprise non validee par l'admin, ou dont l'email n'est pas
+    confirme, ne peut rien faire. Sans effet pour les autres profils."""
+    verifier_email(current_user)
+    return current_user

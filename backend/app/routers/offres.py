@@ -210,6 +210,7 @@ def update_offre(
     db: Session = Depends(get_db),
 ):
     entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    verifier_email(current_user)
     offre = _get_owned_offre_or_404(offre_id, entreprise_profile.id, db)
 
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -228,6 +229,7 @@ def delete_offre(
     db: Session = Depends(get_db),
 ):
     entreprise_profile = _get_entreprise_profile_or_403(current_user, db)
+    verifier_email(current_user)
     offre = _get_owned_offre_or_404(offre_id, entreprise_profile.id, db)
 
     if db.query(Candidature).filter(Candidature.offre_id == offre_id).first() is not None:
